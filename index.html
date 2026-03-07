@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Coin Collection</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__bg"></div>
+      <div class="hero__content">
+        <div class="hero__titleRow">
+          <div class="brandMark" aria-hidden="true">CC</div>
+          <div>
+            <div class="hero__title">Coin Collection</div>
+            <div class="hero__subtitle" id="subtitle">No data loaded</div>
+          </div>
+        </div>
+
+        <div class="hero__actions">
+          <label class="btn btn--primary">
+            Import JSON
+            <input id="fileInput" type="file" accept=".json,application/json" hidden />
+          </label>
+          <button class="btn btn--ghost" id="exportBtn" title="Download a JSON copy of what’s currently loaded">
+            Export
+          </button>
+          <button class="btn btn--ghost btn--danger" id="clearBtn" title="Remove saved data from this browser">
+            Clear
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="app">
+      <aside class="side">
+        <div class="side__block">
+          <div class="side__label">Search</div>
+          <input id="searchInput" class="input" placeholder="Name, year, mint, notes…" />
+        </div>
+
+        <div class="side__block">
+          <div class="side__label">Melt</div>
+          <div class="meltRow">
+            <span class="meltRow__label">Silver spot</span>
+            <span class="meltRow__prefix">$</span>
+            <input id="spotInput" class="meltRow__input" inputmode="decimal" placeholder="25.00" />
+            <span class="meltRow__suffix">/oz</span>
+          </div>
+          <div class="meltRow__hint">Melt value is estimated from coin type + year. Clad coins show $0.</div>
+        </div>
+
+        <div class="side__block">
+          <div class="side__label">Type</div>
+          <div id="typeChips" class="chips" aria-label="Type filter chips"></div>
+          <select id="typeFilter" class="select" title="Filter by type" hidden>
+            <option value="">All Types</option>
+          </select>
+        </div>
+
+        <div class="side__block">
+          <div class="side__label">Sort</div>
+          <select id="sortSelect" class="select" title="Sort">
+            <option value="yearAsc">Year ↑</option>
+            <option value="yearDesc">Year ↓</option>
+            <option value="nameAsc">Name A–Z</option>
+            <option value="nameDesc">Name Z–A</option>
+            <option value="typeAsc">Type</option>
+            <option value="mintAsc">Mint</option>
+          </select>
+        </div>
+
+        <div class="side__block">
+          <div class="side__label">At A Glance</div>
+          <div class="stats" id="stats"></div>
+        </div>
+      </aside>
+
+      <section class="main">
+        <div class="gridTop">
+          <div class="gridTop__title">Browse</div>
+          <div class="gridTop__hint">Click a coin to view both sides.</div>
+        </div>
+
+        <div id="grid" class="grid" aria-live="polite"></div>
+
+        <div id="empty" class="empty" hidden>
+          <div class="empty__title">Import your export</div>
+          <div class="empty__text">
+            In the iOS app: Stats → Export → “Export Coins (JSON + Images)”, then upload the file here.
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="detailDialog" class="dialog">
+      <div class="dialog__header">
+        <div>
+          <div class="dialog__title" id="detailTitle">Coin</div>
+          <div class="dialog__subtitle" id="detailSubtitle"></div>
+        </div>
+        <button class="btn btn--ghost" id="closeDialogBtn">Close</button>
+      </div>
+
+      <div class="dialog__body">
+        <div class="images">
+          <div class="imageCard">
+            <div class="imageCard__label">Obverse</div>
+            <img id="obvImg" class="imageCard__img" alt="Obverse image" />
+          </div>
+          <div class="imageCard">
+            <div class="imageCard__label">Reverse</div>
+            <img id="revImg" class="imageCard__img" alt="Reverse image" />
+          </div>
+        </div>
+
+        <div class="kv">
+          <div class="kv__row">
+            <div class="kv__k">Year</div>
+            <div class="kv__v" id="kvYear">—</div>
+          </div>
+          <div class="kv__row">
+            <div class="kv__k">Type</div>
+            <div class="kv__v" id="kvType">—</div>
+          </div>
+          <div class="kv__row">
+            <div class="kv__k">Mint</div>
+            <div class="kv__v" id="kvMint">—</div>
+          </div>
+          <div class="kv__row">
+            <div class="kv__k">Melt Value (Est.)</div>
+            <div class="kv__v" id="kvMelt">—</div>
+          </div>
+          <div class="kv__row">
+            <div class="kv__k">Notes</div>
+            <div class="kv__v kv__v--notes" id="kvNotes">—</div>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
