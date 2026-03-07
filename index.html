@@ -33,65 +33,72 @@
       </div>
     </header>
 
-    <main class="app">
-      <aside class="side">
-        <div class="side__block">
-          <div class="side__label">Search</div>
-          <input id="searchInput" class="input" placeholder="Name, year, mint, notes…" />
-        </div>
+    <main class="sheet">
+      <div class="sheet__toolbar">
+        <div class="sheet__left">
+          <input id="searchInput" class="input" placeholder="Search name, year, mint, notes…" />
 
-        <div class="side__block">
-          <div class="side__label">Melt</div>
-          <div class="meltRow">
-            <span class="meltRow__label">Silver spot</span>
-            <span class="meltRow__prefix">$</span>
-            <input id="spotInput" class="meltRow__input" inputmode="decimal" placeholder="25.00" />
-            <span class="meltRow__suffix">/oz</span>
-          </div>
-          <div class="meltRow__hint">Melt value is estimated from coin type + year. Clad coins show $0.</div>
-        </div>
-
-        <div class="side__block">
-          <div class="side__label">Type</div>
-          <div id="typeChips" class="chips" aria-label="Type filter chips"></div>
-          <select id="typeFilter" class="select" title="Filter by type" hidden>
-            <option value="">All Types</option>
-          </select>
-        </div>
-
-        <div class="side__block">
-          <div class="side__label">Sort</div>
-          <select id="sortSelect" class="select" title="Sort">
-            <option value="yearAsc">Year ↑</option>
-            <option value="yearDesc">Year ↓</option>
-            <option value="nameAsc">Name A–Z</option>
-            <option value="nameDesc">Name Z–A</option>
-            <option value="typeAsc">Type</option>
-            <option value="mintAsc">Mint</option>
-          </select>
-        </div>
-
-        <div class="side__block">
-          <div class="side__label">At A Glance</div>
-          <div class="stats" id="stats"></div>
-        </div>
-      </aside>
-
-      <section class="main">
-        <div class="gridTop">
-          <div class="gridTop__title">Browse</div>
-          <div class="gridTop__hint">Click a coin to view both sides.</div>
-        </div>
-
-        <div id="grid" class="grid" aria-live="polite"></div>
-
-        <div id="empty" class="empty" hidden>
-          <div class="empty__title">Import your export</div>
-          <div class="empty__text">
-            In the iOS app: Stats → Export → “Export Coins (JSON + Images)”, then upload the file here.
+          <div class="toolGroup">
+            <div class="toolLabel">Type</div>
+            <div id="typeChips" class="chips" aria-label="Type filter chips"></div>
+            <select id="typeFilter" class="select" title="Filter by type" hidden>
+              <option value="">All Types</option>
+            </select>
           </div>
         </div>
-      </section>
+
+        <div class="sheet__right">
+          <div class="toolGroup toolGroup--compact">
+            <div class="toolLabel">Silver</div>
+            <div class="spotPill">
+              <span class="spotPill__prefix">$</span>
+              <input id="spotInput" class="spotPill__input" inputmode="decimal" placeholder="25.00" />
+              <span class="spotPill__suffix">/oz</span>
+            </div>
+          </div>
+
+          <div class="toolGroup toolGroup--compact">
+            <div class="toolLabel">Sort</div>
+            <select id="sortSelect" class="select" title="Sort">
+              <option value="yearAsc">Year ↑</option>
+              <option value="yearDesc">Year ↓</option>
+              <option value="nameAsc">Name A–Z</option>
+              <option value="nameDesc">Name Z–A</option>
+              <option value="typeAsc">Type</option>
+              <option value="mintAsc">Mint</option>
+              <option value="qtyDesc">Qty ↓</option>
+              <option value="meltDesc">Melt ↓</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet__stats" id="stats"></div>
+
+      <div class="tableWrap">
+        <table class="table" id="table" aria-live="polite">
+          <thead>
+            <tr>
+              <th class="col--bu">BU</th>
+              <th class="col--name">Name</th>
+              <th class="col--year">Year</th>
+              <th class="col--mint">Mint</th>
+              <th class="col--type">Type</th>
+              <th class="col--qty">Qty</th>
+              <th class="col--melt">Melt</th>
+              <th class="col--notes">Notes</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div id="empty" class="empty" hidden>
+        <div class="empty__title">Import your export</div>
+        <div class="empty__text">
+          In the iOS app: Stats → Export → “Export For Website (coins.json)”, then upload the file here.
+        </div>
+      </div>
     </main>
 
     <dialog id="detailDialog" class="dialog">
@@ -104,17 +111,6 @@
       </div>
 
       <div class="dialog__body">
-        <div class="images">
-          <div class="imageCard">
-            <div class="imageCard__label">Obverse</div>
-            <img id="obvImg" class="imageCard__img" alt="Obverse image" />
-          </div>
-          <div class="imageCard">
-            <div class="imageCard__label">Reverse</div>
-            <img id="revImg" class="imageCard__img" alt="Reverse image" />
-          </div>
-        </div>
-
         <div class="kv">
           <div class="kv__row">
             <div class="kv__k">Year</div>
