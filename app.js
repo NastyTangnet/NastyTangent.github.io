@@ -7,7 +7,7 @@ const OVERRIDES_KEY = "coin_web_silver_overrides_v1";
 const CHART_RANGE_KEY = "coin_web_chart_range_v1";
 
 // Resolve asset paths relative to app.js (not the current page URL).
-// This prevents broken fetches when the site is served from `/` but the assets live under `/coin-web/`.
+// This avoids path confusion on GitHub Pages (Project Pages often live under `/REPO_NAME/`).
 const ASSET_BASE = (() => {
   try {
     if (document.currentScript && document.currentScript.src) {
@@ -18,8 +18,6 @@ const ASSET_BASE = (() => {
   }
   return new URL(".", window.location.href);
 })();
-
-const IMAGE_DIR_URL = new URL("coin-images/", ASSET_BASE);
 
 /** @type {Array<any>} */
 let coins = [];
@@ -158,12 +156,9 @@ const BU_EXAMPLES = {
   "liberty seated half dime": commonsFile("1857 seated liberty half dime obverse.jpg"),
 };
 
-function coinImageURL(coinId, side, variant) {
-  const id = safeText(coinId).trim().toLowerCase();
-  if (!id) return null;
-  const base = side === "rev" ? "reverse" : "obverse";
-  const v = variant === "full" ? "full" : "thumb";
-  return new URL(`${encodeURIComponent(id)}/${base}_${v}.jpg`, IMAGE_DIR_URL).toString();
+function embeddedImageURL(coin, side) {
+  const raw = getImageDataUrl(coin, side === "rev" ? "rev" : "obv");
+  return raw || null;
 }
 
 function safeText(v) {
@@ -256,7 +251,7 @@ function loadFromStorage() {
 
 async function fetchLiveSilverSpotUSDPerOzt() {
   // We intentionally do not call GoldAPI directly from the browser, because it would expose your API key.
-  // Instead, we read `coin-web/spot.json` (kept up-to-date by a GitHub Action using a GitHub Secret).
+  // Instead, we read `spot.json` (kept up-to-date by a GitHub Action using a GitHub Secret).
   try {
     const url = new URL(`spot.json?ts=${Date.now()}`, ASSET_BASE);
     const resp = await fetch(url, { cache: "no-store" });
@@ -544,7 +539,7 @@ function renderGrid(groups) {
     const buTd = document.createElement("td");
     const bu = document.createElement("div");
     bu.className = "buThumb";
-    const obvUrl = coinImageURL(c.id, "obv", "thumb");
+    const obvUrl = embeddedImageURL(c, "obv");
     if (obvUrl) {
       const img = document.createElement("img");
       img.loading = "lazy";
@@ -592,11 +587,12 @@ function openDetail(group) {
   el.detailSubtitle.textContent = `${y}${mint === "P" ? "" : "-" + mint} • ${c.type || "—"} • ${group.count} in group`;
 
   // Photos (no BU fallback)
-  const id = c && c.id ? c.id : (group.coins?.[0]?.id || "");
-  const obvThumb = coinImageURL(id, "obv", "thumb");
-  const revThumb = coinImageURL(id, "rev", "thumb");
-  const obvFull = coinImageURL(id, "obv", "full");
-  const revFull = coinImageURL(id, "rev", "full");
+  const idCoin = c || (group.coins?.[0] || null);
+  const obvThumb = idCoin ? embeddedImageURL(idCoin, "obv") : null;
+  const revThumb = idCoin ? embeddedImageURL(idCoin, "rev") : null;
+  // Full viewer uses the same embedded thumbnail image (still useful for quick inspection).
+  const obvFull = obvThumb;
+  const revFull = revThumb;
 
   if (el.detailObvImg) {
     el.detailObvImg.src = obvThumb || "";
@@ -925,8 +921,8 @@ function renderVault(groupsVisible) {
 
       const thumb = document.createElement("div");
       thumb.className = "tray__thumb";
-      const repId = g.rep?.id || g.coins?.[0]?.id;
-      const obv = coinImageURL(repId, "obv", "thumb");
+      const repCoin = g.rep || g.coins?.[0];
+      const obv = repCoin ? embeddedImageURL(repCoin, "obv") : null;
       if (obv) {
         const img = document.createElement("img");
         img.loading = "lazy";
@@ -1094,7 +1090,7 @@ function renderNumismatic(groupsVisible) {
     const thumb = document.createElement("div");
     thumb.className = "tray__thumb";
     const rep = it.groups[0]?.rep || it.groups[0]?.coins?.[0];
-    const obv = coinImageURL(rep?.id, "obv", "thumb");
+    const obv = rep ? embeddedImageURL(rep, "obv") : null;
     if (obv) {
       const img = document.createElement("img");
       img.loading = "lazy";
