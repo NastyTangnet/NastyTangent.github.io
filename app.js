@@ -30,6 +30,9 @@ let chartRange = "24h"; // 24h | 7d | 30d
 /** @type {Record<string, {isSilver?: boolean, aswPerCoin?: number}>} */
 let silverOverrides = Object.create(null);
 
+let lastSpotFetchDebug = null; // { url, ok, status, error }
+let lastHistoryFetchDebug = null; // { url, ok, status, error, points }
+
 const el = {
   subtitle: document.getElementById("subtitle"),
   fileInput: document.getElementById("fileInput"),
@@ -255,16 +258,21 @@ async function fetchLiveSilverSpotUSDPerOzt() {
   try {
     const url = new URL(`spot.json?ts=${Date.now()}`, ASSET_BASE);
     const resp = await fetch(url, { cache: "no-store" });
+    lastSpotFetchDebug = { url: url.toString(), ok: resp.ok, status: resp.status, error: "" };
     if (!resp.ok) return null;
     const json = await resp.json();
     const v = Number(json && json.usdPerOzt);
-    if (!Number.isFinite(v) || v <= 0) return null;
+    if (!Number.isFinite(v) || v <= 0) {
+      lastSpotFetchDebug = { url: url.toString(), ok: false, status: resp.status, error: "Invalid usdPerOzt in JSON." };
+      return null;
+    }
     spotMeta = {
       updatedAt: safeText(json && json.updatedAt),
       source: safeText(json && json.source),
     };
     return v;
   } catch (e) {
+    lastSpotFetchDebug = { url: new URL("spot.json", ASSET_BASE).toString(), ok: false, status: 0, error: safeText(e && e.message) || String(e) };
     return null;
   }
 }
@@ -283,15 +291,21 @@ async function loadSpotHistoryIfPresent() {
   try {
     const url = new URL(`spot_history.json?ts=${Date.now()}`, ASSET_BASE);
     const resp = await fetch(url, { cache: "no-store" });
+    lastHistoryFetchDebug = { url: url.toString(), ok: resp.ok, status: resp.status, error: "", points: 0 };
     if (!resp.ok) return false;
     const json = await resp.json();
-    if (!Array.isArray(json)) return false;
+    if (!Array.isArray(json)) {
+      lastHistoryFetchDebug = { url: url.toString(), ok: false, status: resp.status, error: "History JSON is not an array.", points: 0 };
+      return false;
+    }
     spotHistory = json
       .map((p) => ({ t: safeText(p && p.t), usdPerOzt: Number(p && p.usdPerOzt) }))
       .filter((p) => p.t && Number.isFinite(p.usdPerOzt) && p.usdPerOzt > 0)
       .slice(-8000);
+    lastHistoryFetchDebug = { url: url.toString(), ok: true, status: resp.status, error: "", points: spotHistory.length };
     return true;
   } catch (e) {
+    lastHistoryFetchDebug = { url: new URL("spot_history.json", ASSET_BASE).toString(), ok: false, status: 0, error: safeText(e && e.message) || String(e), points: 0 };
     return false;
   }
 }
@@ -740,7 +754,16 @@ function renderSpotHeader() {
   const source = spotMeta && spotMeta.source ? spotMeta.source : "";
   const metaLine = updated ? `Updated: ${updated}${source ? " • " + source : ""}` : (source || "—");
   if (el.spotUpdated) el.spotUpdated.textContent = metaLine;
-  if (el.spotMeta) el.spotMeta.textContent = metaLine;
+  if (el.spotMeta) {
+    // Helpful debug line so you don't need DevTools on iPhone.
+    const live = lastSpotFetchDebug
+      ? `Live: ${lastSpotFetchDebug.ok ? "OK" : "FAIL"} (${lastSpotFetchDebug.status || "—"})`
+      : "Live: —";
+    const hist = lastHistoryFetchDebug
+      ? `History: ${lastHistoryFetchDebug.ok ? "OK" : "FAIL"} (${lastHistoryFetchDebug.points || 0})`
+      : "History: —";
+    el.spotMeta.textContent = `${metaLine}  •  ${live}  •  ${hist}`;
+  }
 }
 
 function setChartRange(next) {
@@ -778,7 +801,10 @@ function renderChart() {
   if (pts.length < 2) {
     ctx.fillStyle = "rgba(234,240,255,0.65)";
     ctx.font = "14px system-ui, -apple-system, Segoe UI, sans-serif";
-    ctx.fillText("No history yet (run the Action a few times).", 16, 34);
+    const hint = lastHistoryFetchDebug && !lastHistoryFetchDebug.ok
+      ? `History fetch failed (${lastHistoryFetchDebug.status || "—"}).`
+      : "No history yet (run the Action a few times).";
+    ctx.fillText(hint, 16, 34);
     return;
   }
 
