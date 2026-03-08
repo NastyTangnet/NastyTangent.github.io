@@ -2,10 +2,22 @@
 
 const STORAGE_KEY = "coin_collection_export_v1";
 const SPOT_KEY = "coin_collection_silver_spot_usd_per_oz_v1";
+const VIEW_KEY = "coin_web_active_view_v1";
+const OVERRIDES_KEY = "coin_web_silver_overrides_v1";
+const CHART_RANGE_KEY = "coin_web_chart_range_v1";
+
+const IMAGE_DIR = "./coin-images";
 
 /** @type {Array<any>} */
 let coins = [];
 let silverSpotUSDPerOzt = 25.0;
+let spotMeta = null; // { updatedAt, source }
+let spotHistory = []; // [{ t: ISO string, usdPerOzt: number }]
+let activeView = "vault"; // vault | num | table
+let chartRange = "24h"; // 24h | 7d | 30d
+
+/** @type {Record<string, {isSilver?: boolean, aswPerCoin?: number}>} */
+let silverOverrides = Object.create(null);
 
 const el = {
   subtitle: document.getElementById("subtitle"),
@@ -30,34 +42,116 @@ const el = {
   kvNotes: document.getElementById("kvNotes"),
   kvMelt: document.getElementById("kvMelt"),
   spotInput: document.getElementById("spotInput"),
+  spotLiveBtn: document.getElementById("spotLiveBtn"),
+
+  tabVault: document.getElementById("tabVault"),
+  tabNum: document.getElementById("tabNum"),
+  tabTable: document.getElementById("tabTable"),
+  vaultView: document.getElementById("vaultView"),
+  numismaticView: document.getElementById("numismaticView"),
+  tableView: document.getElementById("tableView"),
+  silverTools: document.getElementById("silverTools"),
+  sortTools: document.getElementById("sortTools"),
+
+  spotMeta: document.getElementById("spotMeta"),
+  spotBig: document.getElementById("spotBig"),
+  spotUpdated: document.getElementById("spotUpdated"),
+  spotChart: document.getElementById("spotChart"),
+  range24: document.getElementById("range24"),
+  range7: document.getElementById("range7"),
+  range30: document.getElementById("range30"),
+  vaultStats: document.getElementById("vaultStats"),
+  vaultSections: document.getElementById("vaultSections"),
+  numStats: document.getElementById("numStats"),
+  numGrid: document.getElementById("numGrid"),
+
+  detailObvBtn: document.getElementById("detailObvBtn"),
+  detailRevBtn: document.getElementById("detailRevBtn"),
+  detailObvImg: document.getElementById("detailObvImg"),
+  detailRevImg: document.getElementById("detailRevImg"),
+
+  imageDialog: document.getElementById("imageDialog"),
+  imgTitle: document.getElementById("imgTitle"),
+  imgFull: document.getElementById("imgFull"),
+  closeImageBtn: document.getElementById("closeImageBtn"),
 };
 
 // Map normalized series name -> BU example image path (optional).
 // We "hotlink" public-domain / freely-licensed images from Wikimedia Commons so you
 // don't have to commit a huge image set to GitHub.
+function commonsFile(filename) {
+  // Wikimedia redirects this to the actual CDN file URL.
+  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(filename)}`;
+}
+
 const BU_EXAMPLES = {
-  // Half dollar (Kennedy design) – US Treasury / US Mint image
-  "kennedy half dollar": "https://upload.wikimedia.org/wikipedia/commons/e/e5/US_50_Cent_Obv.png",
-  "half dollar": "https://upload.wikimedia.org/wikipedia/commons/e/e5/US_50_Cent_Obv.png",
+  // Dollars (non-gold)
+  "liberty seated dollar": commonsFile("Liberty Seated dollar obverse.jpg"),
+  "trade dollar": commonsFile("1883 trade dollar obverse.jpg"),
+  "morgan dollar": commonsFile("Morgan Dollar 1880S Obverse.png"),
+  "peace dollar": commonsFile("Peace_Dollar_1922_Obverse.png"),
+  "ike dollar": commonsFile("1974S Eisenhower Obverse.jpg"),
 
-  // Quarter (Washington design) – US Treasury / US Mint image
-  "washington quarter": "https://upload.wikimedia.org/wikipedia/commons/7/70/2021-P_US_Quarter_Obverse.jpg",
-  "quarter": "https://upload.wikimedia.org/wikipedia/commons/7/70/2021-P_US_Quarter_Obverse.jpg",
+  // Half Dollars
+  "capped bust half dollar": commonsFile("1834 Bust half dollar obverse.jpg"),
+  "liberty seated half dollar": commonsFile("United States Seated Liberty half dollar obverse.jpg"),
+  "barber half dollar": commonsFile("1894-O Barber half Dollar obverse.jpg"),
+  "walking liberty half dollar": commonsFile("Walking Liberty Half Dollar 1945D Obverse.png"),
+  "franklin half dollar": commonsFile("Franklin HalfObverse.png"),
+  "kennedy half dollar": commonsFile("US 50 Cent Obv.png"),
+  "half dollar": commonsFile("US 50 Cent Obv.png"),
 
-  // Dime (Roosevelt) – US Treasury / US Mint image
-  "roosevelt dime": "https://upload.wikimedia.org/wikipedia/commons/3/3c/Dime_Obverse_13.png",
-  "dime": "https://upload.wikimedia.org/wikipedia/commons/3/3c/Dime_Obverse_13.png",
+  // Quarters
+  "capped bust quarter": commonsFile("1819 quarter dollar obv.jpg"),
+  "liberty seated quarter": commonsFile("1854 quarter obverse.jpg"),
+  "barber quarter": commonsFile("1914 Barber Quarter NGC AU58 Obverse.png"),
+  "standing liberty quarter": commonsFile("Standing Liberty Quarter Type2m 1926 Obverse.png"),
+  "washington quarter": commonsFile("Washington Quarter Silver 1944S Obverse.png"),
+  "quarter": commonsFile("Washington Quarter Silver 1944S Obverse.png"),
 
-  // Cent (Lincoln obverse) – US Mint image
-  "cent": "https://upload.wikimedia.org/wikipedia/commons/0/0c/2010_cent_obverse.png",
+  // Dimes
+  "capped bust dime": commonsFile("Capped Bust dime.jpg"),
+  "liberty seated dime": commonsFile("Seated liberty dime.jpg"),
+  "barber dime": commonsFile("1914 Barber Dime NGC MS64plus Obverse.png"),
+  "mercury dime": commonsFile("1945 Mercury Dime Obverse.png"),
+  "roosevelt dime": commonsFile("1996-S dime obverse.jpg"),
+  "dime": commonsFile("1996-S dime obverse.jpg"),
 
-  // Nickel (Jefferson obverse) – public domain currency image
-  "nickel": "https://upload.wikimedia.org/wikipedia/commons/a/af/Jefferson-Nickel-crop.png",
+  // Nickels
+  "shield nickel": commonsFile("Shield nickel obverse.png"),
+  "liberty nickel": commonsFile("Liberty Head Nickel 1883 NoCents Obverse.png"),
+  "buffalo nickel": commonsFile("Buffalo Nickel 1913 Type 1 Obverse.png"),
+  "jefferson nickel": commonsFile("Jefferson-Nickel-crop.png"),
+  "war nickel": commonsFile("1945-P-Jefferson-War-Nickel-Obverse.JPG"),
+  "nickel": commonsFile("Jefferson-Nickel-crop.png"),
 
-  // Dollars (silver)
-  "morgan dollar": "https://upload.wikimedia.org/wikipedia/commons/3/35/2021_Morgan_Commemorative_Dollar_Obverse.png",
-  "peace dollar": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Peace_dollar.jpg",
+  // Cents (large + small)
+  "coronet head cent": commonsFile("1837_cent_obv.jpg"),
+  "braided hair cent": commonsFile("1839 Braided Hair cent obverse.jpg"),
+  "flying eagle cent": commonsFile("1857.Eagle.Cent.obverse.jpg"),
+  "indian cent": commonsFile("1859 Indian Head cent obverse.png"),
+  "lincoln cent (wheat reverse)": commonsFile("2010_cent_obverse.png"),
+  "lincoln cent (modern)": commonsFile("2010_cent_obverse.png"),
+  "cent": commonsFile("2010_cent_obverse.png"),
+
+  // Other (non-gold)
+  "two cent": commonsFile("1865 Two Cent Obverse.png"),
+  "three cent silver": commonsFile("3 cent piece Ag obverse.jpg"),
+  "three cent nickel": commonsFile("3 cent piece Ni obverse.jpg"),
+  "twenty cent": commonsFile("Obverse of 1875 United States 20c coin.jpg"),
+
+  // Half dimes
+  "capped bust half dime": commonsFile("1829 half dime obv.jpg"),
+  "liberty seated half dime": commonsFile("1857 seated liberty half dime obverse.jpg"),
 };
+
+function coinImageURL(coinId, side, variant) {
+  const id = safeText(coinId).trim().toLowerCase();
+  if (!id) return null;
+  const base = side === "rev" ? "reverse" : "obverse";
+  const v = variant === "full" ? "full" : "thumb";
+  return `${IMAGE_DIR}/${encodeURIComponent(id)}/${base}_${v}.jpg`;
+}
 
 function safeText(v) {
   if (v === null || v === undefined) return "";
@@ -122,6 +216,74 @@ function loadFromStorage() {
   } catch (e) {
     // ignore
   }
+
+  try {
+    const raw = localStorage.getItem(VIEW_KEY);
+    if (raw === "vault" || raw === "num" || raw === "table") activeView = raw;
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    const raw = localStorage.getItem(CHART_RANGE_KEY);
+    if (raw === "24h" || raw === "7d" || raw === "30d") chartRange = raw;
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    const raw = localStorage.getItem(OVERRIDES_KEY);
+    if (!raw) return;
+    const json = JSON.parse(raw);
+    if (json && typeof json === "object") silverOverrides = json;
+  } catch (e) {
+    // ignore
+  }
+}
+
+async function fetchLiveSilverSpotUSDPerOzt() {
+  // We intentionally do not call GoldAPI directly from the browser, because it would expose your API key.
+  // Instead, we read `coin-web/spot.json` (kept up-to-date by a GitHub Action using a GitHub Secret).
+  try {
+    const resp = await fetch(`./spot.json?ts=${Date.now()}`, { cache: "no-store" });
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    const v = Number(json && json.usdPerOzt);
+    if (!Number.isFinite(v) || v <= 0) return null;
+    spotMeta = {
+      updatedAt: safeText(json && json.updatedAt),
+      source: safeText(json && json.source),
+    };
+    return v;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function applyLiveSpotIfAvailable() {
+  const v = await fetchLiveSilverSpotUSDPerOzt();
+  if (!v) return false;
+  silverSpotUSDPerOzt = v;
+  if (el.spotInput) el.spotInput.value = v.toFixed(2);
+  saveToStorage();
+  renderSpotHeader();
+  return true;
+}
+
+async function loadSpotHistoryIfPresent() {
+  try {
+    const resp = await fetch(`./spot_history.json?ts=${Date.now()}`, { cache: "no-store" });
+    if (!resp.ok) return false;
+    const json = await resp.json();
+    if (!Array.isArray(json)) return false;
+    spotHistory = json
+      .map((p) => ({ t: safeText(p && p.t), usdPerOzt: Number(p && p.usdPerOzt) }))
+      .filter((p) => p.t && Number.isFinite(p.usdPerOzt) && p.usdPerOzt > 0)
+      .slice(-8000);
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 function saveToStorage() {
@@ -133,6 +295,24 @@ function saveToStorage() {
 
   try {
     localStorage.setItem(SPOT_KEY, String(silverSpotUSDPerOzt));
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    localStorage.setItem(VIEW_KEY, activeView);
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    localStorage.setItem(CHART_RANGE_KEY, chartRange);
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    localStorage.setItem(OVERRIDES_KEY, JSON.stringify(silverOverrides));
   } catch (e) {
     // ignore
   }
@@ -167,6 +347,23 @@ function updateTypeFilterOptions() {
   if (types.includes(current)) el.typeFilter.value = current;
 
   renderTypeChips(types);
+}
+
+function setActiveView(next) {
+  if (next !== "vault" && next !== "num" && next !== "table") return;
+  activeView = next;
+  if (el.tabVault) el.tabVault.setAttribute("aria-selected", String(next === "vault"));
+  if (el.tabNum) el.tabNum.setAttribute("aria-selected", String(next === "num"));
+  if (el.tabTable) el.tabTable.setAttribute("aria-selected", String(next === "table"));
+
+  if (el.vaultView) el.vaultView.classList.toggle("view--active", next === "vault");
+  if (el.numismaticView) el.numismaticView.classList.toggle("view--active", next === "num");
+  if (el.tableView) el.tableView.classList.toggle("view--active", next === "table");
+
+  if (el.sortTools) el.sortTools.style.display = next === "table" ? "block" : "none";
+
+  saveToStorage();
+  rerender();
 }
 
 function renderTypeChips(types) {
@@ -237,6 +434,39 @@ function filterCoins() {
   });
 }
 
+function overrideForGroupKey(key) {
+  const v = silverOverrides[key];
+  if (!v || typeof v !== "object") return null;
+  return v;
+}
+
+function setOverrideForGroupKey(key, patch) {
+  const prev = overrideForGroupKey(key) || {};
+  silverOverrides[key] = { ...prev, ...patch };
+  const cur = silverOverrides[key];
+  const empty =
+    (cur.isSilver === undefined || cur.isSilver === null) &&
+    (cur.aswPerCoin === undefined || cur.aswPerCoin === null || cur.aswPerCoin === "");
+  if (empty) delete silverOverrides[key];
+  saveToStorage();
+}
+
+function groupSilverOztWithOverride(group) {
+  const ov = overrideForGroupKey(group.key);
+  if (ov && ov.isSilver === false) return 0;
+  const per = ov && Number.isFinite(Number(ov.aswPerCoin)) ? Number(ov.aswPerCoin) : null;
+  if (per !== null) return Math.max(0, per) * group.count;
+  return groupSilverOzt(group);
+}
+
+function meltValueForGroupUSDWithOverride(group, spotUSDPerOzt) {
+  const oz = groupSilverOztWithOverride(group);
+  if (!Number.isFinite(oz) || oz <= 0) return 0;
+  const spot = Number(spotUSDPerOzt);
+  if (!Number.isFinite(spot) || spot <= 0) return 0;
+  return oz * spot;
+}
+
 function computeStats(groupsVisible) {
   const groupsAll = groupCoins();
 
@@ -249,7 +479,7 @@ function computeStats(groupsVisible) {
   const oldest = years.length ? Math.min(...years) : null;
   const newest = years.length ? Math.max(...years) : null;
 
-  const totalMelt = groupsAll.reduce((sum, g) => sum + meltValueForGroupUSD(g, silverSpotUSDPerOzt), 0);
+  const totalMelt = groupsAll.reduce((sum, g) => sum + meltValueForGroupUSDWithOverride(g, silverSpotUSDPerOzt), 0);
 
   return {
     total: coins.length,
@@ -293,26 +523,26 @@ function renderGrid(groups) {
     const y = year4(c.year) || c.year || "—";
     const mint = normalizeMint(c.mint);
     const qty = g.count;
-    const melt = meltValueForGroupUSD(g, silverSpotUSDPerOzt);
+    const melt = meltValueForGroupUSDWithOverride(g, silverSpotUSDPerOzt);
     const notes = groupNotes(g);
 
     const buTd = document.createElement("td");
     const bu = document.createElement("div");
     bu.className = "buThumb";
-    const buUrl = buExampleURLForSeries(c.name);
-    if (buUrl) {
+    const obvUrl = coinImageURL(c.id, "obv", "thumb");
+    if (obvUrl) {
       const img = document.createElement("img");
       img.loading = "lazy";
       img.decoding = "async";
-      img.src = buUrl;
-      img.alt = `${c.name} BU example`;
+      img.src = obvUrl;
+      img.alt = `${c.name} obverse`;
       img.addEventListener("error", () => {
         img.remove();
-        bu.textContent = "BU";
+        bu.textContent = "—";
       }, { once: true });
       bu.appendChild(img);
     } else {
-      bu.textContent = "BU";
+      bu.textContent = "—";
     }
     buTd.appendChild(bu);
 
@@ -346,18 +576,53 @@ function openDetail(group) {
   const mint = normalizeMint(c.mint);
   el.detailSubtitle.textContent = `${y}${mint === "P" ? "" : "-" + mint} • ${c.type || "—"} • ${group.count} in group`;
 
+  // Photos (no BU fallback)
+  const id = c && c.id ? c.id : (group.coins?.[0]?.id || "");
+  const obvThumb = coinImageURL(id, "obv", "thumb");
+  const revThumb = coinImageURL(id, "rev", "thumb");
+  const obvFull = coinImageURL(id, "obv", "full");
+  const revFull = coinImageURL(id, "rev", "full");
+
+  if (el.detailObvImg) {
+    el.detailObvImg.src = obvThumb || "";
+    el.detailObvImg.style.visibility = obvThumb ? "visible" : "hidden";
+  }
+  if (el.detailRevImg) {
+    el.detailRevImg.src = revThumb || "";
+    el.detailRevImg.style.visibility = revThumb ? "visible" : "hidden";
+  }
+  if (el.detailObvBtn) {
+    el.detailObvBtn.disabled = !obvFull;
+    el.detailObvBtn.onclick = () => openImageViewer(`${c.name || "Coin"} – Obverse`, obvFull);
+  }
+  if (el.detailRevBtn) {
+    el.detailRevBtn.disabled = !revFull;
+    el.detailRevBtn.onclick = () => openImageViewer(`${c.name || "Coin"} – Reverse`, revFull);
+  }
+
   el.kvYear.textContent = y;
   el.kvType.textContent = c.type || "—";
   el.kvMint.textContent = mint;
   el.kvNotes.textContent = groupNotes(group);
 
   if (el.kvMelt) {
-    const melt = meltValueForGroupUSD(group, silverSpotUSDPerOzt);
-    const oz = groupSilverOzt(group);
+    const melt = meltValueForGroupUSDWithOverride(group, silverSpotUSDPerOzt);
+    const oz = groupSilverOztWithOverride(group);
     el.kvMelt.textContent = oz > 0 ? `${formatUSD(melt)}  (${oz.toFixed(4)} ozt Ag)` : "$0.00  (clad / no silver)";
   }
 
   el.dialog.showModal();
+}
+
+function openImageViewer(title, url) {
+  if (!el.imageDialog || !el.imgFull) return;
+  el.imgTitle.textContent = title || "Photo";
+  el.imgFull.src = url || "";
+  el.imageDialog.showModal();
+}
+
+function closeImageViewer() {
+  if (el.imageDialog && el.imageDialog.open) el.imageDialog.close();
 }
 
 function closeDetail() {
@@ -367,9 +632,23 @@ function closeDetail() {
 function rerender() {
   updateTypeFilterOptions();
   const filteredGroups = filterCoins();
-  const sortedGroups = sortGroups(filteredGroups, el.sortSelect.value);
+  const sortedGroups = sortGroups(filteredGroups, el.sortSelect?.value || "yearAsc");
   renderStats(sortedGroups);
-  renderGrid(sortedGroups);
+
+  if (activeView === "vault") {
+    renderSpotHeader();
+    renderChart();
+    renderVault(sortedGroups);
+  } else if (activeView === "num") {
+    renderSpotHeader();
+    renderChart();
+    renderNumismatic(sortedGroups);
+  } else {
+    renderSpotHeader();
+    renderChart();
+    renderGrid(sortedGroups);
+  }
+
   el.exportBtn.disabled = coins.length === 0;
   el.clearBtn.disabled = coins.length === 0;
 }
@@ -429,7 +708,7 @@ function sortGroups(groups, mode) {
     typeAsc: (a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name),
     mintAsc: (a, b) => normalizeMint(a.mint).localeCompare(normalizeMint(b.mint)) || year4(a.year).localeCompare(year4(b.year)),
     qtyDesc: (a, b) => (b.count - a.count) || a.name.localeCompare(b.name),
-    meltDesc: (a, b) => (meltValueForGroupUSD(b, silverSpotUSDPerOzt) - meltValueForGroupUSD(a, silverSpotUSDPerOzt)) || a.name.localeCompare(b.name),
+    meltDesc: (a, b) => (meltValueForGroupUSDWithOverride(b, silverSpotUSDPerOzt) - meltValueForGroupUSDWithOverride(a, silverSpotUSDPerOzt)) || a.name.localeCompare(b.name),
   }[mode] || ((a, b) => a.name.localeCompare(b.name));
   copy.sort(cmp);
   return copy;
@@ -439,6 +718,400 @@ function formatUSD(n) {
   const v = Number(n);
   if (!Number.isFinite(v)) return "$0.00";
   return v.toLocaleString(undefined, { style: "currency", currency: "USD" });
+}
+
+function renderSpotHeader() {
+  const v = Number(silverSpotUSDPerOzt);
+  const spotText = Number.isFinite(v) && v > 0 ? formatUSD(v) : "$—";
+  if (el.spotBig) el.spotBig.textContent = spotText;
+
+  const updated = spotMeta && spotMeta.updatedAt ? spotMeta.updatedAt : "";
+  const source = spotMeta && spotMeta.source ? spotMeta.source : "";
+  const metaLine = updated ? `Updated: ${updated}${source ? " • " + source : ""}` : (source || "—");
+  if (el.spotUpdated) el.spotUpdated.textContent = metaLine;
+  if (el.spotMeta) el.spotMeta.textContent = metaLine;
+}
+
+function setChartRange(next) {
+  if (next !== "24h" && next !== "7d" && next !== "30d") return;
+  chartRange = next;
+  if (el.range24) el.range24.setAttribute("aria-selected", String(next === "24h"));
+  if (el.range7) el.range7.setAttribute("aria-selected", String(next === "7d"));
+  if (el.range30) el.range30.setAttribute("aria-selected", String(next === "30d"));
+  saveToStorage();
+  rerender();
+}
+
+function chartPointsForRange() {
+  if (!spotHistory.length) return [];
+  const now = Date.now();
+  const ms = chartRange === "24h" ? 24 * 3600 * 1000 : (chartRange === "7d" ? 7 * 24 * 3600 * 1000 : 30 * 24 * 3600 * 1000);
+  const cutoff = now - ms;
+  return spotHistory
+    .map((p) => ({ t: Date.parse(p.t), v: Number(p.usdPerOzt) }))
+    .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.v) && p.v > 0 && p.t >= cutoff)
+    .sort((a, b) => a.t - b.t);
+}
+
+function renderChart() {
+  const canvas = el.spotChart;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const pts = chartPointsForRange();
+  if (pts.length < 2) {
+    ctx.fillStyle = "rgba(234,240,255,0.65)";
+    ctx.font = "14px system-ui, -apple-system, Segoe UI, sans-serif";
+    ctx.fillText("No history yet (run the Action a few times).", 16, 34);
+    return;
+  }
+
+  let min = Infinity;
+  let max = -Infinity;
+  for (const p of pts) {
+    if (p.v < min) min = p.v;
+    if (p.v > max) max = p.v;
+  }
+  const pad = Math.max(0.05, (max - min) * 0.12);
+  min -= pad;
+  max += pad;
+
+  const left = 48;
+  const right = 14;
+  const top = 14;
+  const bottom = 22;
+  const iw = w - left - right;
+  const ih = h - top - bottom;
+
+  // grid
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = top + (ih * i) / 4;
+    ctx.beginPath();
+    ctx.moveTo(left, y);
+    ctx.lineTo(left + iw, y);
+    ctx.stroke();
+  }
+
+  // y labels
+  ctx.fillStyle = "rgba(234,240,255,0.55)";
+  ctx.font = "11px system-ui, -apple-system, Segoe UI, sans-serif";
+  for (let i = 0; i <= 4; i++) {
+    const v = max - ((max - min) * i) / 4;
+    const y = top + (ih * i) / 4;
+    ctx.fillText(`$${v.toFixed(2)}`, 10, y + 4);
+  }
+
+  // line
+  const t0 = pts[0].t;
+  const t1 = pts[pts.length - 1].t;
+  const xt = (t) => left + ((t - t0) / (t1 - t0)) * iw;
+  const yv = (v) => top + (1 - (v - min) / (max - min)) * ih;
+
+  ctx.strokeStyle = "rgba(109,225,255,0.95)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(xt(pts[0].t), yv(pts[0].v));
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(xt(pts[i].t), yv(pts[i].v));
+  ctx.stroke();
+
+  // last point
+  const last = pts[pts.length - 1];
+  ctx.fillStyle = "rgba(255,221,133,0.95)";
+  ctx.beginPath();
+  ctx.arc(xt(last.t), yv(last.v), 3.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function renderPills(targetEl, pills) {
+  if (!targetEl) return;
+  targetEl.innerHTML = pills.map((p) => `<div class="pill">${escapeHtml(p)}</div>`).join("");
+}
+
+function renderVault(groupsVisible) {
+  if (!el.vaultSections) return;
+
+  const seriesMap = new Map(); // name -> [groups]
+  for (const g of groupsVisible) {
+    const ov = overrideForGroupKey(g.key);
+    const oz = groupSilverOztWithOverride(g);
+    const isSilver = (ov && ov.isSilver === true) || oz > 0;
+    if (!isSilver) continue;
+    const name = safeText(g.name) || "Coin";
+    if (!seriesMap.has(name)) seriesMap.set(name, []);
+    seriesMap.get(name).push(g);
+  }
+
+  // Stats
+  let totalOz = 0;
+  let totalMelt = 0;
+  let totalCoins = 0;
+  for (const [, list] of seriesMap.entries()) {
+    for (const g of list) {
+      totalCoins += g.count;
+      const oz = groupSilverOztWithOverride(g);
+      totalOz += oz;
+      totalMelt += meltValueForGroupUSDWithOverride(g, silverSpotUSDPerOzt);
+    }
+  }
+  renderPills(el.vaultStats, [
+    `Silver coins: ${totalCoins}`,
+    `Total ASW: ${totalOz.toFixed(4)} ozt`,
+    `Total melt: ${formatUSD(totalMelt)}`,
+  ]);
+
+  // Sections
+  const names = Array.from(seriesMap.keys()).sort((a, b) => a.localeCompare(b));
+  el.vaultSections.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  for (const name of names) {
+    const groups = seriesMap.get(name).slice().sort((a, b) => (year4(a.year) || "").localeCompare(year4(b.year) || ""));
+    const section = document.createElement("div");
+    section.className = "vaultSection";
+
+    const head = document.createElement("div");
+    head.className = "vaultSection__head";
+
+    const title = document.createElement("div");
+    title.className = "vaultSection__title";
+    title.textContent = name;
+
+    let secCoins = 0;
+    let secOz = 0;
+    let secMelt = 0;
+    for (const g of groups) {
+      secCoins += g.count;
+      secOz += groupSilverOztWithOverride(g);
+      secMelt += meltValueForGroupUSDWithOverride(g, silverSpotUSDPerOzt);
+    }
+    const sub = document.createElement("div");
+    sub.className = "vaultSection__sub";
+    sub.textContent = `${secCoins} coins • ${secOz.toFixed(4)} ozt • ${formatUSD(secMelt)}`;
+
+    head.appendChild(title);
+    head.appendChild(sub);
+    section.appendChild(head);
+
+    const grid = document.createElement("div");
+    grid.className = "trayGrid";
+
+    for (const g of groups) {
+      const tray = document.createElement("div");
+      tray.className = "tray";
+
+      const top = document.createElement("div");
+      top.className = "tray__top";
+
+      const thumb = document.createElement("div");
+      thumb.className = "tray__thumb";
+      const repId = g.rep?.id || g.coins?.[0]?.id;
+      const obv = coinImageURL(repId, "obv", "thumb");
+      if (obv) {
+        const img = document.createElement("img");
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.src = obv;
+        img.alt = `${name} obverse`;
+        img.addEventListener("error", () => {
+          img.remove();
+          thumb.textContent = "—";
+        }, { once: true });
+        thumb.appendChild(img);
+      } else {
+        thumb.textContent = "—";
+      }
+
+      const block = document.createElement("div");
+      const y = year4(g.year) || g.year || "—";
+      const mint = normalizeMint(g.mint);
+      const ym = `${y}${mint === "P" ? "" : "-" + mint}`;
+
+      const tTitle = document.createElement("div");
+      tTitle.className = "tray__title";
+      tTitle.textContent = ym;
+      const tMeta = document.createElement("div");
+      tMeta.className = "tray__meta";
+      tMeta.textContent = `${g.count} coin${g.count === 1 ? "" : "s"}`;
+
+      block.appendChild(tTitle);
+      block.appendChild(tMeta);
+
+      top.appendChild(thumb);
+      top.appendChild(block);
+      tray.appendChild(top);
+
+      const oz = groupSilverOztWithOverride(g);
+      const melt = meltValueForGroupUSDWithOverride(g, silverSpotUSDPerOzt);
+
+      const stats = document.createElement("div");
+      stats.className = "tray__stats";
+      stats.appendChild(miniStat("Qty", String(g.count)));
+      stats.appendChild(miniStat("ASW", `${oz.toFixed(4)} ozt`));
+      stats.appendChild(miniStat("Melt", formatUSD(melt)));
+      tray.appendChild(stats);
+
+      // Overrides
+      const list = document.createElement("div");
+      list.className = "tray__list";
+
+      const row = document.createElement("div");
+      row.className = "slotRow";
+
+      const label = document.createElement("div");
+      label.className = "slotRow__label";
+      label.textContent = "Override";
+
+      const controls = document.createElement("div");
+      controls.className = "slotRow__controls";
+
+      const ov = overrideForGroupKey(g.key) || {};
+      const isSilver = ov.isSilver;
+
+      const chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.checked = isSilver === true;
+      chk.addEventListener("change", () => {
+        setOverrideForGroupKey(g.key, { isSilver: chk.checked ? true : undefined });
+        rerender();
+      });
+
+      const chkWrap = document.createElement("label");
+      chkWrap.className = "toggle";
+      chkWrap.title = "Force this group to count as silver (even if the estimator thinks it's clad).";
+      chkWrap.appendChild(chk);
+      chkWrap.appendChild(document.createTextNode("Force silver"));
+
+      const input = document.createElement("input");
+      input.className = "smallInput";
+      input.placeholder = "ASW/coin";
+      input.inputMode = "decimal";
+      input.value = Number.isFinite(Number(ov.aswPerCoin)) ? String(Number(ov.aswPerCoin)) : "";
+      input.title = "Override ASW per coin (ozt). Example: 0.36169";
+      input.addEventListener("change", () => {
+        const raw = safeText(input.value).trim().replace(/[^0-9.]/g, "");
+        const v = raw ? Number.parseFloat(raw) : NaN;
+        setOverrideForGroupKey(g.key, { aswPerCoin: Number.isFinite(v) ? v : undefined });
+        rerender();
+      });
+
+      const excl = document.createElement("button");
+      excl.type = "button";
+      excl.className = "pillBtn";
+      excl.textContent = "Exclude";
+      excl.title = "Force this group to be treated as non-silver.";
+      excl.addEventListener("click", () => {
+        setOverrideForGroupKey(g.key, { isSilver: false });
+        rerender();
+      });
+
+      controls.appendChild(chkWrap);
+      controls.appendChild(input);
+      controls.appendChild(excl);
+
+      row.appendChild(label);
+      row.appendChild(controls);
+      list.appendChild(row);
+
+      tray.appendChild(list);
+
+      grid.appendChild(tray);
+    }
+
+    section.appendChild(grid);
+    frag.appendChild(section);
+  }
+
+  el.vaultSections.appendChild(frag);
+}
+
+function miniStat(k, v) {
+  const el2 = document.createElement("div");
+  el2.className = "miniStat";
+  const kk = document.createElement("div");
+  kk.className = "miniStat__k";
+  kk.textContent = k;
+  const vv = document.createElement("div");
+  vv.className = "miniStat__v";
+  vv.textContent = v;
+  el2.appendChild(kk);
+  el2.appendChild(vv);
+  return el2;
+}
+
+function renderNumismatic(groupsVisible) {
+  if (!el.numGrid) return;
+  const seriesMap = new Map(); // name -> {count, groups}
+  for (const g of groupsVisible) {
+    const ov = overrideForGroupKey(g.key);
+    const oz = groupSilverOztWithOverride(g);
+    const isSilver = (ov && ov.isSilver === true) || oz > 0;
+    if (isSilver) continue;
+    const name = safeText(g.name) || "Coin";
+    const cur = seriesMap.get(name) || { count: 0, groups: [] };
+    cur.count += g.count;
+    cur.groups.push(g);
+    seriesMap.set(name, cur);
+  }
+
+  const total = Array.from(seriesMap.values()).reduce((s, x) => s + x.count, 0);
+  renderPills(el.numStats, [
+    `Non-silver coins: ${total}`,
+    `Series: ${seriesMap.size}`,
+  ]);
+
+  el.numGrid.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  const names = Array.from(seriesMap.keys()).sort((a, b) => a.localeCompare(b));
+  for (const name of names) {
+    const it = seriesMap.get(name);
+    const card = document.createElement("div");
+    card.className = "numCard";
+
+    const top = document.createElement("div");
+    top.className = "numCard__top";
+
+    const thumb = document.createElement("div");
+    thumb.className = "tray__thumb";
+    const rep = it.groups[0]?.rep || it.groups[0]?.coins?.[0];
+    const obv = coinImageURL(rep?.id, "obv", "thumb");
+    if (obv) {
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.src = obv;
+      img.alt = `${name} obverse`;
+      img.addEventListener("error", () => {
+        img.remove();
+        thumb.textContent = "—";
+      }, { once: true });
+      thumb.appendChild(img);
+    } else {
+      thumb.textContent = "—";
+    }
+
+    const block = document.createElement("div");
+    const t = document.createElement("div");
+    t.className = "numCard__title";
+    t.textContent = name;
+    const meta = document.createElement("div");
+    meta.className = "numCard__meta";
+    meta.textContent = `${it.count} coin${it.count === 1 ? "" : "s"}`;
+    block.appendChild(t);
+    block.appendChild(meta);
+
+    top.appendChild(thumb);
+    top.appendChild(block);
+    card.appendChild(top);
+
+    frag.appendChild(card);
+  }
+  el.numGrid.appendChild(frag);
 }
 
 async function tryLoadDefaultCoinsJson() {
@@ -458,10 +1131,13 @@ async function tryLoadDefaultCoinsJson() {
 
 async function init() {
   loadFromStorage();
+  await applyLiveSpotIfAvailable();
+  await loadSpotHistoryIfPresent();
   updateTypeFilterOptions();
   if (el.spotInput) {
     el.spotInput.value = String(Number(silverSpotUSDPerOzt).toFixed(2));
   }
+  setChartRange(chartRange);
 
   el.fileInput.addEventListener("change", async (e) => {
     const file = e.target.files?.[0];
@@ -479,6 +1155,9 @@ async function init() {
     coins = [];
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(SPOT_KEY);
+    localStorage.removeItem(VIEW_KEY);
+    localStorage.removeItem(CHART_RANGE_KEY);
+    localStorage.removeItem(OVERRIDES_KEY);
     rerender();
   });
 
@@ -503,6 +1182,32 @@ async function init() {
     });
   }
 
+  if (el.spotLiveBtn) {
+    el.spotLiveBtn.addEventListener("click", async () => {
+      el.spotLiveBtn.disabled = true;
+      const prev = el.spotLiveBtn.textContent;
+      el.spotLiveBtn.textContent = "…";
+      try {
+        const ok = await applyLiveSpotIfAvailable();
+        rerender();
+        el.spotLiveBtn.textContent = ok ? "Live" : "No data";
+      } finally {
+        setTimeout(() => {
+          el.spotLiveBtn.disabled = false;
+          el.spotLiveBtn.textContent = prev || "Live";
+        }, 900);
+      }
+    });
+  }
+
+  if (el.tabVault) el.tabVault.addEventListener("click", () => setActiveView("vault"));
+  if (el.tabNum) el.tabNum.addEventListener("click", () => setActiveView("num"));
+  if (el.tabTable) el.tabTable.addEventListener("click", () => setActiveView("table"));
+
+  if (el.range24) el.range24.addEventListener("click", () => setChartRange("24h"));
+  if (el.range7) el.range7.addEventListener("click", () => setChartRange("7d"));
+  if (el.range30) el.range30.addEventListener("click", () => setChartRange("30d"));
+
   el.closeDialogBtn.addEventListener("click", () => closeDetail());
   el.dialog.addEventListener("click", (e) => {
     // close if clicking the backdrop area
@@ -513,8 +1218,20 @@ async function init() {
     if (!inDialog) closeDetail();
   });
 
+  if (el.closeImageBtn) el.closeImageBtn.addEventListener("click", () => closeImageViewer());
+  if (el.imageDialog) {
+    el.imageDialog.addEventListener("click", (e) => {
+      const rect = el.imageDialog.getBoundingClientRect();
+      const inDialog =
+        rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+        rect.left <= e.clientX && e.clientX <= rect.left + rect.width;
+      if (!inDialog) closeImageViewer();
+    });
+  }
+
   // If `coins.json` exists in the deployed folder, always load it and overwrite older local data.
   await tryLoadDefaultCoinsJson();
+  setActiveView(activeView);
   rerender();
 }
 
@@ -584,22 +1301,17 @@ function buExampleURLForSeries(name) {
   const key = safeText(name).toLowerCase().trim();
   if (BU_EXAMPLES[key]) return BU_EXAMPLES[key];
 
-  // Fallback: try to match by containment so any series name that contains "cent"
-  // still gets a BU example image.
-  for (const k of Object.keys(BU_EXAMPLES)) {
-    if (k !== "quarter" && k !== "dime" && k !== "cent" && k !== "nickel" && k !== "half dollar") {
-      // Keep the generic keys as fallback; prefer specific matches.
-      continue;
-    }
+  // Fallback: containment match, preferring the most-specific keys first.
+  // This makes "Walking Liberty Half Dollar" resolve before the generic "half dollar".
+  if (!buExampleURLForSeries._keys) {
+    buExampleURLForSeries._keys = Object.keys(BU_EXAMPLES).sort((a, b) => b.length - a.length);
   }
-
-  if (key.includes("morgan") && BU_EXAMPLES["morgan dollar"]) return BU_EXAMPLES["morgan dollar"];
-  if (key.includes("peace") && BU_EXAMPLES["peace dollar"]) return BU_EXAMPLES["peace dollar"];
-  if (key.includes("half dollar") && BU_EXAMPLES["half dollar"]) return BU_EXAMPLES["half dollar"];
-  if (key.includes("quarter") && BU_EXAMPLES["quarter"]) return BU_EXAMPLES["quarter"];
-  if (key.includes("dime") && BU_EXAMPLES["dime"]) return BU_EXAMPLES["dime"];
-  if (key.includes("cent") && BU_EXAMPLES["cent"]) return BU_EXAMPLES["cent"];
-  if (key.includes("nickel") && BU_EXAMPLES["nickel"]) return BU_EXAMPLES["nickel"];
+  for (const k of buExampleURLForSeries._keys) {
+    if (key.includes(k)) return BU_EXAMPLES[k];
+  }
 
   return null;
 }
+
+// Cached key list for BU examples (attached to function to avoid another global).
+buExampleURLForSeries._keys = null;

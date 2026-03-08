@@ -34,6 +34,12 @@
     </header>
 
     <main class="sheet">
+      <div class="tabs" role="tablist" aria-label="Views">
+        <button class="tab" id="tabVault" role="tab" aria-selected="true" type="button">Silver Vault</button>
+        <button class="tab" id="tabNum" role="tab" aria-selected="false" type="button">Numismatic</button>
+        <button class="tab" id="tabTable" role="tab" aria-selected="false" type="button">All (Table)</button>
+      </div>
+
       <div class="sheet__toolbar">
         <div class="sheet__left">
           <input id="searchInput" class="input" placeholder="Search name, year, mint, notes…" />
@@ -48,16 +54,20 @@
         </div>
 
         <div class="sheet__right">
-          <div class="toolGroup toolGroup--compact">
+          <div class="toolGroup toolGroup--compact" id="silverTools">
             <div class="toolLabel">Silver</div>
-            <div class="spotPill">
-              <span class="spotPill__prefix">$</span>
-              <input id="spotInput" class="spotPill__input" inputmode="decimal" placeholder="25.00" />
-              <span class="spotPill__suffix">/oz</span>
+            <div class="spotRow">
+              <div class="spotPill">
+                <span class="spotPill__prefix">$</span>
+                <input id="spotInput" class="spotPill__input" inputmode="decimal" placeholder="25.00" />
+                <span class="spotPill__suffix">/oz</span>
+              </div>
+              <button class="btn btn--ghost btn--tiny" id="spotLiveBtn" title="Fetch the latest spot price">Live</button>
             </div>
+            <div class="spotMeta" id="spotMeta">—</div>
           </div>
 
-          <div class="toolGroup toolGroup--compact">
+          <div class="toolGroup toolGroup--compact" id="sortTools">
             <div class="toolLabel">Sort</div>
             <select id="sortSelect" class="select" title="Sort">
               <option value="yearAsc">Year ↑</option>
@@ -73,25 +83,58 @@
         </div>
       </div>
 
-      <div class="sheet__stats" id="stats"></div>
+      <section id="vaultView" class="view view--active" aria-label="Silver Vault">
+        <div class="vaultTop">
+          <div class="vaultCard">
+            <div class="vaultCard__title">Silver Spot (XAG)</div>
+            <div class="vaultCard__value" id="spotBig">$—</div>
+            <div class="vaultCard__sub" id="spotUpdated">Updated: —</div>
+            <div class="vaultCard__hint">Use overrides to include/exclude coins or set custom ASW.</div>
+          </div>
 
-      <div class="tableWrap">
-        <table class="table" id="table" aria-live="polite">
-          <thead>
-            <tr>
-              <th class="col--bu">BU</th>
-              <th class="col--name">Name</th>
-              <th class="col--year">Year</th>
-              <th class="col--mint">Mint</th>
-              <th class="col--type">Type</th>
-              <th class="col--qty">Qty</th>
-              <th class="col--melt">Melt</th>
-              <th class="col--notes">Notes</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
+          <div class="chartCard">
+            <div class="chartCard__head">
+              <div class="chartCard__title">Spot History</div>
+              <div class="seg" role="tablist" aria-label="Range">
+                <button class="seg__btn" id="range24" type="button" aria-selected="true">24H</button>
+                <button class="seg__btn" id="range7" type="button" aria-selected="false">7D</button>
+                <button class="seg__btn" id="range30" type="button" aria-selected="false">30D</button>
+              </div>
+            </div>
+            <canvas id="spotChart" width="900" height="240" class="chart" aria-label="Silver spot price chart"></canvas>
+          </div>
+        </div>
+
+        <div class="sheet__stats" id="vaultStats"></div>
+        <div id="vaultSections" class="vaultSections"></div>
+      </section>
+
+      <section id="numismaticView" class="view" aria-label="Numismatic">
+        <div class="sheet__stats" id="numStats"></div>
+        <div id="numGrid" class="numGrid" aria-live="polite"></div>
+      </section>
+
+      <section id="tableView" class="view" aria-label="All Coins Table">
+        <div class="sheet__stats" id="stats"></div>
+
+        <div class="tableWrap">
+          <table class="table" id="table" aria-live="polite">
+            <thead>
+              <tr>
+                <th class="col--bu">Photo</th>
+                <th class="col--name">Name</th>
+                <th class="col--year">Year</th>
+                <th class="col--mint">Mint</th>
+                <th class="col--type">Type</th>
+                <th class="col--qty">Qty</th>
+                <th class="col--melt">Melt</th>
+                <th class="col--notes">Notes</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </section>
 
       <div id="empty" class="empty" hidden>
         <div class="empty__title">Import your export</div>
@@ -111,6 +154,17 @@
       </div>
 
       <div class="dialog__body">
+        <div class="photoStrip" aria-label="Coin photos">
+          <button class="photoBtn" id="detailObvBtn" type="button" title="Open obverse photo">
+            <div class="photoBtn__imgWrap"><img id="detailObvImg" alt="Obverse" loading="lazy" decoding="async" /></div>
+            <div class="photoBtn__label">Obverse</div>
+          </button>
+          <button class="photoBtn" id="detailRevBtn" type="button" title="Open reverse photo">
+            <div class="photoBtn__imgWrap"><img id="detailRevImg" alt="Reverse" loading="lazy" decoding="async" /></div>
+            <div class="photoBtn__label">Reverse</div>
+          </button>
+        </div>
+
         <div class="kv">
           <div class="kv__row">
             <div class="kv__k">Year</div>
@@ -133,6 +187,16 @@
             <div class="kv__v kv__v--notes" id="kvNotes">—</div>
           </div>
         </div>
+      </div>
+    </dialog>
+
+    <dialog id="imageDialog" class="imgDialog">
+      <div class="imgDialog__header">
+        <div class="imgDialog__title" id="imgTitle">Photo</div>
+        <button class="btn btn--ghost" id="closeImageBtn" type="button">Close</button>
+      </div>
+      <div class="imgDialog__body">
+        <img id="imgFull" class="imgDialog__img" alt="Coin photo" loading="lazy" decoding="async" />
       </div>
     </dialog>
 
