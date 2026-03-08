@@ -35,9 +35,18 @@
 
     <main class="sheet">
       <div class="tabs" role="tablist" aria-label="Views">
-        <button class="tab" id="tabVault" role="tab" aria-selected="true" type="button">Silver Vault</button>
-        <button class="tab" id="tabNum" role="tab" aria-selected="false" type="button">Numismatic</button>
-        <button class="tab" id="tabTable" role="tab" aria-selected="false" type="button">All (Table)</button>
+        <button class="tab" id="tabVault" role="tab" aria-selected="true" type="button">
+          <span class="tab__icon" aria-hidden="true">⟡</span>
+          <span class="tab__text">Silver Vault</span>
+        </button>
+        <button class="tab" id="tabNum" role="tab" aria-selected="false" type="button">
+          <span class="tab__icon" aria-hidden="true">◎</span>
+          <span class="tab__text">Numismatic</span>
+        </button>
+        <button class="tab" id="tabTable" role="tab" aria-selected="false" type="button">
+          <span class="tab__icon" aria-hidden="true">▦</span>
+          <span class="tab__text">Table</span>
+        </button>
       </div>
 
       <div class="sheet__toolbar">

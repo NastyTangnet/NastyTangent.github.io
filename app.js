@@ -6,7 +6,20 @@ const VIEW_KEY = "coin_web_active_view_v1";
 const OVERRIDES_KEY = "coin_web_silver_overrides_v1";
 const CHART_RANGE_KEY = "coin_web_chart_range_v1";
 
-const IMAGE_DIR = "./coin-images";
+// Resolve asset paths relative to app.js (not the current page URL).
+// This prevents broken fetches when the site is served from `/` but the assets live under `/coin-web/`.
+const ASSET_BASE = (() => {
+  try {
+    if (document.currentScript && document.currentScript.src) {
+      return new URL(".", document.currentScript.src);
+    }
+  } catch (e) {
+    // ignore
+  }
+  return new URL(".", window.location.href);
+})();
+
+const IMAGE_DIR_URL = new URL("coin-images/", ASSET_BASE);
 
 /** @type {Array<any>} */
 let coins = [];
@@ -150,7 +163,7 @@ function coinImageURL(coinId, side, variant) {
   if (!id) return null;
   const base = side === "rev" ? "reverse" : "obverse";
   const v = variant === "full" ? "full" : "thumb";
-  return `${IMAGE_DIR}/${encodeURIComponent(id)}/${base}_${v}.jpg`;
+  return new URL(`${encodeURIComponent(id)}/${base}_${v}.jpg`, IMAGE_DIR_URL).toString();
 }
 
 function safeText(v) {
@@ -245,7 +258,8 @@ async function fetchLiveSilverSpotUSDPerOzt() {
   // We intentionally do not call GoldAPI directly from the browser, because it would expose your API key.
   // Instead, we read `coin-web/spot.json` (kept up-to-date by a GitHub Action using a GitHub Secret).
   try {
-    const resp = await fetch(`./spot.json?ts=${Date.now()}`, { cache: "no-store" });
+    const url = new URL(`spot.json?ts=${Date.now()}`, ASSET_BASE);
+    const resp = await fetch(url, { cache: "no-store" });
     if (!resp.ok) return null;
     const json = await resp.json();
     const v = Number(json && json.usdPerOzt);
@@ -272,7 +286,8 @@ async function applyLiveSpotIfAvailable() {
 
 async function loadSpotHistoryIfPresent() {
   try {
-    const resp = await fetch(`./spot_history.json?ts=${Date.now()}`, { cache: "no-store" });
+    const url = new URL(`spot_history.json?ts=${Date.now()}`, ASSET_BASE);
+    const resp = await fetch(url, { cache: "no-store" });
     if (!resp.ok) return false;
     const json = await resp.json();
     if (!Array.isArray(json)) return false;
@@ -1118,7 +1133,8 @@ async function tryLoadDefaultCoinsJson() {
   // If the repo includes `coins.json`, prefer it (keeps GitHub Pages always up-to-date).
   // We bypass caches to reduce "stale data" surprises.
   try {
-    const res = await fetch(`./coins.json?v=${Date.now()}`, { cache: "no-store" });
+    const url = new URL(`coins.json?v=${Date.now()}`, ASSET_BASE);
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return false;
     const json = await res.json();
     coins = parseCoins(json);
@@ -1131,8 +1147,14 @@ async function tryLoadDefaultCoinsJson() {
 
 async function init() {
   loadFromStorage();
-  await applyLiveSpotIfAvailable();
-  await loadSpotHistoryIfPresent();
+  // These depend on files committed to the site (and GitHub Actions for live updates).
+  // If they fail, the app still works with manual spot input.
+  const liveOk = await applyLiveSpotIfAvailable();
+  const histOk = await loadSpotHistoryIfPresent();
+  if (!liveOk && el.spotMeta) el.spotMeta.textContent = "Live price unavailable (missing spot.json or Action not running).";
+  if (!histOk && el.spotUpdated) {
+    // Keep whatever spot header says; chart will show its own message.
+  }
   updateTypeFilterOptions();
   if (el.spotInput) {
     el.spotInput.value = String(Number(silverSpotUSDPerOzt).toFixed(2));

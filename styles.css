@@ -147,25 +147,48 @@ body::before {
   gap: 8px;
   margin-bottom: 12px;
   padding: 6px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.10);
   background: rgba(0,0,0,0.26);
+  position: sticky;
+  top: 10px;
+  z-index: 2;
+  backdrop-filter: blur(10px);
 }
 .tab {
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.03);
   color: rgba(234,240,255,0.85);
-  padding: 10px 12px;
-  border-radius: 14px;
+  padding: 10px 14px;
+  border-radius: 999px;
   font-weight: 900;
   letter-spacing: 0.2px;
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 .tab:hover { transform: translateY(-1px); border-color: rgba(109,225,255,0.20); }
 .tab[aria-selected="true"] {
   background: linear-gradient(135deg, rgba(109,225,255,0.20), rgba(255, 221, 133, 0.14));
   border-color: rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.95);
+}
+.tab__icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.18);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: rgba(234,240,255,0.78);
+}
+.tab[aria-selected="true"] .tab__icon {
+  border-color: rgba(109,225,255,0.25);
+  background: rgba(109,225,255,0.12);
   color: rgba(255,255,255,0.95);
 }
 .sheet__toolbar {
