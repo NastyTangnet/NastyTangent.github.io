@@ -112,22 +112,22 @@ function embeddedDataUrl(coin, side) {
 }
 
 function fileImageUrl(coin, side) {
-  // App can upload images to either:
-  // - repo root: `coin-images/<id>/obv.jpg` (your current setup)
-  // - site folder: `NastyTangent.github/coin-images/<id>/obv.jpg` (older/local)
-  // We try root first, then fall back.
+  // Your repo stores images at:
+  // `NastyTangent.github/coin-images/<id>/obv.jpg` and `rev.jpg`
+  // So relative to this page (`.../NastyTangent.github/`) the correct URL is `coin-images/...`.
+  // We keep a fallback to `../coin-images/...` just in case you later move them to repo root.
   const id = safeText(coin.id).toLowerCase();
   if (!id) return null;
   const name = side === "rev" ? "rev.jpg" : "obv.jpg";
-  const rootUrl = new URL(`../coin-images/${id}/${name}`, BASE).toString();
-  const localUrl = new URL(`coin-images/${id}/${name}`, BASE).toString();
-  return { rootUrl, localUrl };
+  const primary = new URL(`coin-images/${id}/${name}`, BASE).toString();
+  const fallback = new URL(`../coin-images/${id}/${name}`, BASE).toString();
+  return { primary, fallback };
 }
 
 function bestImageUrl(coin, side) {
   // Prefer real uploaded files, then embedded thumbs (if present), otherwise null.
   const f = fileImageUrl(coin, side);
-  if (f) return f.rootUrl;
+  if (f) return f.primary;
   return embeddedDataUrl(coin, side) || null;
 }
 
@@ -264,8 +264,8 @@ function makeThumb(coin) {
     img.addEventListener("error", () => {
       // Fallback: try local coin-images path, then embedded.
       const f = fileImageUrl(coin, "obv");
-      if (f && img.src !== f.localUrl) {
-        img.src = f.localUrl;
+      if (f && img.src !== f.fallback) {
+        img.src = f.fallback;
         return;
       }
       const embedded = embeddedDataUrl(coin, "obv");
@@ -422,11 +422,11 @@ function renderLayerDetail(s, g) {
   const setImg = (imgEl, urls, embedded) => {
     imgEl.removeAttribute("src");
     if (!urls && !embedded) return;
-    const first = urls ? urls.rootUrl : null;
+    const first = urls ? urls.primary : null;
     if (first) imgEl.src = `${first}?v=${Date.now()}`;
     imgEl.onerror = () => {
-      if (urls && imgEl.src !== urls.localUrl) {
-        imgEl.src = urls.localUrl;
+      if (urls && imgEl.src !== urls.fallback) {
+        imgEl.src = urls.fallback;
         return;
       }
       if (embedded && imgEl.src !== embedded) {
