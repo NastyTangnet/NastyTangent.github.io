@@ -104,6 +104,30 @@
       </div>
       <div class="layerDialog__body">
         <div id="layerList" class="layerList" aria-live="polite"></div>
+
+        <div id="layerDetail" class="layerDetail" hidden>
+          <div class="layerDetail__photos">
+            <button class="photoTile" id="detailObvBtn" type="button" title="Open obverse">
+              <div class="photoTile__label">Obverse</div>
+              <img id="detailObvImg" alt="Obverse" loading="lazy" decoding="async" />
+            </button>
+            <button class="photoTile" id="detailRevBtn" type="button" title="Open reverse">
+              <div class="photoTile__label">Reverse</div>
+              <img id="detailRevImg" alt="Reverse" loading="lazy" decoding="async" />
+            </button>
+          </div>
+
+          <div class="kv kv--wide">
+            <div class="kv__k">Year</div>
+            <div class="kv__v" id="detailYear">—</div>
+            <div class="kv__k">Type</div>
+            <div class="kv__v" id="detailType">—</div>
+            <div class="kv__k">Mint</div>
+            <div class="kv__v" id="detailMint">—</div>
+            <div class="kv__k">Notes</div>
+            <div class="kv__v notes" id="detailNotes">—</div>
+          </div>
+        </div>
       </div>
     </dialog>
 

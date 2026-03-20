@@ -41,6 +41,21 @@ const els = {
   layerTitle: document.getElementById("layerTitle"),
   layerSub: document.getElementById("layerSub"),
   layerList: document.getElementById("layerList"),
+  layerDetail: document.getElementById("layerDetail"),
+  detailObvBtn: document.getElementById("detailObvBtn"),
+  detailRevBtn: document.getElementById("detailRevBtn"),
+  detailObvImg: document.getElementById("detailObvImg"),
+  detailRevImg: document.getElementById("detailRevImg"),
+  detailYear: document.getElementById("detailYear"),
+  detailType: document.getElementById("detailType"),
+  detailMint: document.getElementById("detailMint"),
+  detailNotes: document.getElementById("detailNotes"),
+};
+
+let layerState = {
+  mode: "list", // "list" | "detail"
+  series: null,
+  group: null,
 };
 
 function safeText(v) {
@@ -97,17 +112,23 @@ function embeddedDataUrl(coin, side) {
 }
 
 function fileImageUrl(coin, side) {
-  // App uploads:
-  // `coin-images/<coinId>/obv.jpg` and `rev.jpg` (lowercased uuid folder)
+  // App can upload images to either:
+  // - repo root: `coin-images/<id>/obv.jpg` (your current setup)
+  // - site folder: `NastyTangent.github/coin-images/<id>/obv.jpg` (older/local)
+  // We try root first, then fall back.
   const id = safeText(coin.id).toLowerCase();
   if (!id) return null;
   const name = side === "rev" ? "rev.jpg" : "obv.jpg";
-  return new URL(`coin-images/${id}/${name}`, BASE).toString();
+  const rootUrl = new URL(`../coin-images/${id}/${name}`, BASE).toString();
+  const localUrl = new URL(`coin-images/${id}/${name}`, BASE).toString();
+  return { rootUrl, localUrl };
 }
 
 function bestImageUrl(coin, side) {
   // Prefer real uploaded files, then embedded thumbs (if present), otherwise null.
-  return fileImageUrl(coin, side) || embeddedDataUrl(coin, side) || null;
+  const f = fileImageUrl(coin, side);
+  if (f) return f.rootUrl;
+  return embeddedDataUrl(coin, side) || null;
 }
 
 function buildGroups(coinsArr) {
@@ -241,10 +262,15 @@ function makeThumb(coin) {
     img.dataset.src = url;
     img.referrerPolicy = "no-referrer";
     img.addEventListener("error", () => {
-      // Fallback to embedded if file 404s (or vice versa).
-      const fallback = embeddedDataUrl(coin, "obv");
-      if (fallback && img.src !== fallback) {
-        img.src = fallback;
+      // Fallback: try local coin-images path, then embedded.
+      const f = fileImageUrl(coin, "obv");
+      if (f && img.src !== f.localUrl) {
+        img.src = f.localUrl;
+        return;
+      }
+      const embedded = embeddedDataUrl(coin, "obv");
+      if (embedded && img.src !== embedded) {
+        img.src = embedded;
         return;
       }
       // No fallback: hide the broken-image icon.
@@ -290,34 +316,57 @@ function openImage(title, src) {
 
 function openLayerForSeries(s) {
   if (!els.layerDialog) return;
-  els.layerTitle.textContent = s.name || "(Untitled)";
-  const yearsText = s.minYear && s.maxYear ? `${s.minYear}–${s.maxYear}` : "—";
-  els.layerSub.textContent = `${yearsText} • ${s.qty} coin(s)`;
-
-  renderLayerGroups(s);
+  layerState = { mode: "list", series: s, group: null };
+  renderLayer();
 
   if (typeof els.layerDialog.showModal === "function") els.layerDialog.showModal();
   else els.layerDialog.setAttribute("open", "open");
 }
 
-function renderLayerGroups(s) {
+function renderLayer() {
+  const s = layerState.series;
+  if (!s) return;
+
+  const yearsText = s.minYear && s.maxYear ? `${s.minYear}–${s.maxYear}` : "—";
+
+  if (layerState.mode === "list") {
+    els.layerBackBtn.textContent = "Back";
+    els.layerTitle.textContent = s.name || "(Untitled)";
+    els.layerSub.textContent = `${yearsText} • ${s.qty} coin(s)`;
+    els.layerList.hidden = false;
+    if (els.layerDetail) els.layerDetail.hidden = true;
+
+    renderLayerList(s);
+    return;
+  }
+
+  // detail
+  const g = layerState.group;
+  if (!g) return;
+  const yearText = safeText(g.year) ? `${safeText(g.year)}${mintSuffix(g.mint)}` : "—";
+  els.layerBackBtn.textContent = "Back";
+  els.layerTitle.textContent = s.name || "(Untitled)";
+  els.layerSub.textContent = `${yearText} • x${g.qty}`;
+  els.layerList.hidden = true;
+  if (els.layerDetail) els.layerDetail.hidden = false;
+
+  renderLayerDetail(s, g);
+}
+
+function renderLayerList(s) {
   els.layerList.innerHTML = "";
   const frag = document.createDocumentFragment();
-
-  // Sort groups by year desc, then mint.
   const groupsSorted = [...s.groups].sort(
     (a, b) => safeText(b.year).localeCompare(safeText(a.year)) || safeText(a.mint).localeCompare(safeText(b.mint))
   );
 
   for (const g of groupsSorted) {
     const rep = g.items[0];
-
     const card = document.createElement("div");
     card.className = "groupCard";
 
     const head = document.createElement("div");
     head.className = "groupCard__head";
-
     head.appendChild(makeThumb(rep));
 
     const meta = document.createElement("div");
@@ -343,80 +392,58 @@ function renderLayerGroups(s) {
 
     meta.appendChild(title);
     meta.appendChild(sub);
-
     head.appendChild(meta);
-
-    const body = document.createElement("div");
-    body.className = "groupCard__body";
-
-    const photos = document.createElement("div");
-    photos.className = "photos";
-
-    for (const side of ["obv", "rev"]) {
-      const wrap = document.createElement("div");
-      wrap.className = "photo";
-      const lbl = document.createElement("div");
-      lbl.className = "photo__label";
-      lbl.textContent = side === "rev" ? "Reverse" : "Obverse";
-      wrap.appendChild(lbl);
-
-      const img = document.createElement("img");
-      img.alt = side === "rev" ? "Reverse" : "Obverse";
-      img.loading = "lazy";
-      img.decoding = "async";
-      const url = bestImageUrl(rep, side);
-      if (url) {
-        img.dataset.src = url;
-        observeLazyImage(img);
-        img.addEventListener("click", () => {
-          const real = img.src || `${url}?v=${Date.now()}`;
-          openImage(`${s.name} • ${safeText(g.year)}${mintSuffix(g.mint)} • ${side === "rev" ? "Reverse" : "Obverse"}`, real);
-        });
-        img.addEventListener("error", () => {
-          const fallback = embeddedDataUrl(rep, side);
-          if (fallback && img.src !== fallback) {
-            img.src = fallback;
-            return;
-          }
-          img.removeAttribute("src");
-          img.style.display = "none";
-          wrap.classList.add("is-missing");
-        });
-      } else {
-        wrap.classList.add("is-missing");
-      }
-
-      wrap.appendChild(img);
-      photos.appendChild(wrap);
-    }
-
-    body.appendChild(photos);
-
-    const notes = safeText(rep.notes).trim();
-    if (notes) {
-      const kv = document.createElement("div");
-      kv.className = "kv";
-      const kk = document.createElement("div");
-      kk.className = "kv__k";
-      kk.textContent = "Notes";
-      const vv = document.createElement("div");
-      vv.className = "kv__v notes";
-      vv.textContent = notes;
-      kv.appendChild(kk);
-      kv.appendChild(vv);
-      body.appendChild(kv);
-    }
+    card.appendChild(head);
 
     head.addEventListener("click", () => {
-      card.classList.toggle("is-open");
+      layerState = { mode: "detail", series: s, group: g };
+      renderLayer();
     });
 
-    card.appendChild(head);
-    card.appendChild(body);
     frag.appendChild(card);
   }
 
   els.layerList.appendChild(frag);
+}
+
+function renderLayerDetail(s, g) {
+  const rep = g.items[0];
+  const yearText = safeText(g.year) ? `${safeText(g.year)}${mintSuffix(g.mint)}` : "—";
+
+  els.detailYear.textContent = yearText;
+  els.detailType.textContent = safeText(g.type) || "—";
+  els.detailMint.textContent = safeText(g.mint) || "—";
+  els.detailNotes.textContent = safeText(rep.notes).trim() || "—";
+
+  // Images: try root, then local, then embedded.
+  const obv = fileImageUrl(rep, "obv");
+  const rev = fileImageUrl(rep, "rev");
+
+  const setImg = (imgEl, urls, embedded) => {
+    imgEl.removeAttribute("src");
+    if (!urls && !embedded) return;
+    const first = urls ? urls.rootUrl : null;
+    if (first) imgEl.src = `${first}?v=${Date.now()}`;
+    imgEl.onerror = () => {
+      if (urls && imgEl.src !== urls.localUrl) {
+        imgEl.src = urls.localUrl;
+        return;
+      }
+      if (embedded && imgEl.src !== embedded) {
+        imgEl.src = embedded;
+      }
+    };
+  };
+
+  setImg(els.detailObvImg, obv, embeddedDataUrl(rep, "obv"));
+  setImg(els.detailRevImg, rev, embeddedDataUrl(rep, "rev"));
+
+  els.detailObvBtn.onclick = () => {
+    if (els.detailObvImg.src) openImage(`${s.name} • ${yearText} • Obverse`, els.detailObvImg.src);
+  };
+  els.detailRevBtn.onclick = () => {
+    if (els.detailRevImg.src) openImage(`${s.name} • ${yearText} • Reverse`, els.detailRevImg.src);
+  };
 }
 
 function renderSeries(arr) {
@@ -612,8 +639,13 @@ els.closeImageBtn.addEventListener("click", () => {
 });
 
 els.layerBackBtn.addEventListener("click", () => {
-  // Back just closes this layer and returns to the main grid.
-  els.layerDialog.close();
+  // If we're on the detail screen, go back to the list. Otherwise close.
+  if (layerState.mode === "detail") {
+    layerState = { mode: "list", series: layerState.series, group: null };
+    renderLayer();
+  } else {
+    els.layerDialog.close();
+  }
 });
 
 els.layerCloseBtn.addEventListener("click", () => {
