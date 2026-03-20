@@ -11,21 +11,20 @@ const STORAGE_KEY = "jpcc_coins_v2";
 
 let coins = [];
 let groups = []; // grouped by name+year+mint
+let series = []; // grouped by coin.name
 
 const els = {
   subtitle: document.getElementById("subtitle"),
   meta: document.getElementById("meta"),
-  list: document.getElementById("list"),
+  seriesGrid: document.getElementById("seriesGrid"),
+  loadingOverlay: document.getElementById("loadingOverlay"),
+  loadingText: document.getElementById("loadingText"),
 
   reloadBtn: document.getElementById("reloadBtn"),
   fileInput: document.getElementById("fileInput"),
   exportBtn: document.getElementById("exportBtn"),
   clearBtn: document.getElementById("clearBtn"),
 
-  typeSelect: document.getElementById("typeSelect"),
-  nameSelect: document.getElementById("nameSelect"),
-  yearSelect: document.getElementById("yearSelect"),
-  mintSelect: document.getElementById("mintSelect"),
   sortSelect: document.getElementById("sortSelect"),
   searchInput: document.getElementById("searchInput"),
 
@@ -127,85 +126,79 @@ function buildGroups(coinsArr) {
   return out;
 }
 
-function setOptions(selectEl, values, placeholder) {
-  const prev = selectEl.value;
-  selectEl.innerHTML = "";
-  const opt0 = document.createElement("option");
-  opt0.value = "";
-  opt0.textContent = placeholder;
-  selectEl.appendChild(opt0);
-
-  for (const v of values) {
-    const opt = document.createElement("option");
-    opt.value = v;
-    opt.textContent = v;
-    selectEl.appendChild(opt);
+function buildSeries(groupsArr) {
+  const map = new Map();
+  for (const g of groupsArr) {
+    const name = safeText(g.name).trim() || "(Untitled)";
+    const existing = map.get(name);
+    if (existing) existing.groups.push(g);
+    else map.set(name, { name, groups: [g] });
   }
 
-  // Preserve selection if possible.
-  if ([...selectEl.options].some((o) => o.value === prev)) {
-    selectEl.value = prev;
+  const out = [];
+  for (const s of map.values()) {
+    const qty = s.groups.reduce((sum, g) => sum + g.qty, 0);
+    const years = s.groups.map((g) => safeText(g.year)).filter(Boolean);
+    const minYear = years.length ? years.reduce((a, b) => (a.localeCompare(b) <= 0 ? a : b)) : "";
+    const maxYear = years.length ? years.reduce((a, b) => (a.localeCompare(b) >= 0 ? a : b)) : "";
+    out.push({
+      name: s.name,
+      qty,
+      minYear,
+      maxYear,
+      groups: s.groups,
+    });
   }
+  return out;
 }
 
-function refreshSelects() {
-  const types = [...new Set(groups.map((g) => safeText(g.type).trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  const names = [...new Set(groups.map((g) => safeText(g.name).trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  const years = [...new Set(groups.map((g) => safeText(g.year).trim()).filter(Boolean))].sort((a, b) => b.localeCompare(a));
-  const mints = [...new Set(groups.map((g) => safeText(g.mint).trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-
-  setOptions(els.typeSelect, types, "All");
-  setOptions(els.nameSelect, names, "All");
-  setOptions(els.yearSelect, years, "All");
-  setOptions(els.mintSelect, mints, "All");
+function setLoading(visible, text) {
+  if (!els.loadingOverlay) return;
+  if (typeof text === "string" && els.loadingText) els.loadingText.textContent = text;
+  if (visible) els.loadingOverlay.classList.remove("loading--hidden");
+  else els.loadingOverlay.classList.add("loading--hidden");
 }
 
 function applyFilters() {
-  const type = els.typeSelect.value;
-  const name = els.nameSelect.value;
-  const year = els.yearSelect.value;
-  const mint = els.mintSelect.value;
   const q = safeText(els.searchInput.value).trim().toLowerCase();
 
-  let filtered = groups;
-  if (type) filtered = filtered.filter((g) => g.type === type);
-  if (name) filtered = filtered.filter((g) => g.name === name);
-  if (year) filtered = filtered.filter((g) => safeText(g.year) === year);
-  if (mint) filtered = filtered.filter((g) => safeText(g.mint) === mint);
+  let filtered = series;
   if (q) {
-    filtered = filtered.filter((g) => {
-      const hay = `${g.name} ${g.year} ${g.type} ${g.mint} ${safeText(g.notes)}`.toLowerCase();
+    filtered = filtered.filter((s) => {
+      const hay = `${s.name} ${safeText(s.minYear)} ${safeText(s.maxYear)} ${s.groups
+        .map((g) => `${g.year} ${g.mint} ${g.type} ${safeText(g.notes)}`)
+        .join(" ")}`.toLowerCase();
       return hay.includes(q);
     });
   }
 
-  filtered = sortGroups(filtered);
-  render(filtered);
+  filtered = sortSeries(filtered);
+  renderSeries(filtered);
 
   const totalCoins = coins.length;
-  const shownCoins = filtered.reduce((sum, g) => sum + g.qty, 0);
-  els.meta.textContent = `Showing ${filtered.length} group(s), ${shownCoins} coin(s)`;
-  els.subtitle.textContent = `${totalCoins} coins • ${groups.length} unique groups`;
+  const shownCoins = filtered.reduce((sum, s) => sum + s.qty, 0);
+  els.meta.textContent = `Showing ${filtered.length} type box(es), ${shownCoins} coin(s)`;
+  els.subtitle.textContent = `${totalCoins} coins • ${series.length} types`;
 }
 
-function sortGroups(arr) {
+function sortSeries(arr) {
   const mode = els.sortSelect.value;
   const out = [...arr];
   out.sort((a, b) => {
     switch (mode) {
-      case "yearAsc":
-        return safeText(a.year).localeCompare(safeText(b.year)) || a.name.localeCompare(b.name);
-      case "yearDesc":
-        return safeText(b.year).localeCompare(safeText(a.year)) || a.name.localeCompare(b.name);
       case "nameDesc":
-        return b.name.localeCompare(a.name) || safeText(b.year).localeCompare(safeText(a.year));
+        return b.name.localeCompare(a.name);
       case "qtyAsc":
         return a.qty - b.qty || a.name.localeCompare(b.name);
       case "qtyDesc":
         return b.qty - a.qty || a.name.localeCompare(b.name);
+      case "yearOldest":
+        return safeText(a.minYear).localeCompare(safeText(b.minYear)) || b.qty - a.qty || a.name.localeCompare(b.name);
+      case "yearNewest":
+        return safeText(b.maxYear).localeCompare(safeText(a.maxYear)) || b.qty - a.qty || a.name.localeCompare(b.name);
       case "nameAsc":
       default:
-        return a.name.localeCompare(b.name) || safeText(b.year).localeCompare(safeText(a.year));
+        return a.name.localeCompare(b.name);
     }
   });
   return out;
@@ -265,45 +258,40 @@ function openImage(title, src) {
   else els.imageDialog.setAttribute("open", "open");
 }
 
-function render(arr) {
-  els.list.innerHTML = "";
+function renderSeries(arr) {
+  els.seriesGrid.innerHTML = "";
   const frag = document.createDocumentFragment();
 
-  for (const g of arr) {
-    const rep = g.items[0];
-
+  for (const s of arr) {
     const details = document.createElement("details");
-    details.className = "group";
+    details.className = "series";
 
     const summary = document.createElement("summary");
-    summary.className = "group__summary";
+    summary.className = "series__summary";
 
-    summary.appendChild(makeThumb(rep));
+    // Use the first group’s first coin as a "cover".
+    const repCoin = s.groups[0] && s.groups[0].items[0] ? s.groups[0].items[0] : null;
+    if (repCoin) summary.appendChild(makeThumb(repCoin));
 
     const main = document.createElement("div");
-    main.className = "rowMain";
+    main.className = "series__main";
 
     const title = document.createElement("div");
-    title.className = "rowTitle";
-    title.textContent = g.name || "(Untitled)";
+    title.className = "series__title";
+    title.textContent = s.name || "(Untitled)";
 
     const sub = document.createElement("div");
-    sub.className = "rowSub";
+    sub.className = "series__sub";
 
-    const y = document.createElement("span");
-    y.className = "pill";
-    y.textContent = `${g.year || "—"}${mintSuffix(g.mint)}`;
-
-    const t = document.createElement("span");
-    t.className = "pill";
-    t.textContent = g.type || "—";
+    const years = document.createElement("span");
+    years.className = "pill";
+    years.textContent = s.minYear && s.maxYear ? `${s.minYear}–${s.maxYear}` : "—";
 
     const q = document.createElement("span");
     q.className = "pill qty";
-    q.textContent = `x${g.qty}`;
+    q.textContent = `x${s.qty}`;
 
-    sub.appendChild(y);
-    sub.appendChild(t);
+    sub.appendChild(years);
     sub.appendChild(q);
 
     main.appendChild(title);
@@ -313,70 +301,115 @@ function render(arr) {
     details.appendChild(summary);
 
     const body = document.createElement("div");
-    body.className = "group__body";
+    body.className = "series__body";
 
-    const photos = document.createElement("div");
-    photos.className = "photos";
+    const coinGrid = document.createElement("div");
+    coinGrid.className = "coinGrid";
 
-    for (const side of ["obv", "rev"]) {
-      const wrap = document.createElement("div");
-      wrap.className = "photo";
-      const lbl = document.createElement("div");
-      lbl.className = "photo__label";
-      lbl.textContent = side === "rev" ? "Reverse" : "Obverse";
-      wrap.appendChild(lbl);
+    // Sort groups inside a series by year desc, then mint.
+    const groupsSorted = [...s.groups].sort((a, b) => safeText(b.year).localeCompare(safeText(a.year)) || safeText(a.mint).localeCompare(safeText(b.mint)));
 
-      const img = document.createElement("img");
-      img.alt = side === "rev" ? "Reverse" : "Obverse";
-      img.loading = "lazy";
-      img.decoding = "async";
-      const url = bestImageUrl(rep, side);
-      if (url) {
-        img.dataset.src = url;
-        observeLazyImage(img);
-        img.addEventListener("click", () => {
-          const real = img.src || `${url}?v=${Date.now()}`;
-          openImage(`${g.name} • ${side === "rev" ? "Reverse" : "Obverse"}`, real);
-        });
-        img.addEventListener("error", () => {
-          const fallback = embeddedDataUrl(rep, side);
-          if (fallback && img.src !== fallback) img.src = fallback;
-        });
+    for (const g of groupsSorted) {
+      const rep = g.items[0];
+
+      const coinDetails = document.createElement("details");
+      coinDetails.className = "coin";
+
+      const coinSummary = document.createElement("summary");
+      coinSummary.className = "coin__summary";
+
+      coinSummary.appendChild(makeThumb(rep));
+
+      const cm = document.createElement("div");
+      cm.className = "coin__meta";
+
+      const ct = document.createElement("div");
+      ct.className = "coin__title";
+      ct.textContent = `${safeText(g.year) || "—"}${mintSuffix(g.mint)}`;
+
+      const cs = document.createElement("div");
+      cs.className = "coin__sub";
+
+      const p1 = document.createElement("span");
+      p1.className = "pill";
+      p1.textContent = safeText(g.type) || "—";
+
+      const p2 = document.createElement("span");
+      p2.className = "pill qty";
+      p2.textContent = `x${g.qty}`;
+
+      cs.appendChild(p1);
+      cs.appendChild(p2);
+
+      cm.appendChild(ct);
+      cm.appendChild(cs);
+      coinSummary.appendChild(cm);
+
+      coinDetails.appendChild(coinSummary);
+
+      const coinBody = document.createElement("div");
+      coinBody.className = "coin__body";
+
+      const photos = document.createElement("div");
+      photos.className = "photos";
+
+      for (const side of ["obv", "rev"]) {
+        const wrap = document.createElement("div");
+        wrap.className = "photo";
+        const lbl = document.createElement("div");
+        lbl.className = "photo__label";
+        lbl.textContent = side === "rev" ? "Reverse" : "Obverse";
+        wrap.appendChild(lbl);
+
+        const img = document.createElement("img");
+        img.alt = side === "rev" ? "Reverse" : "Obverse";
+        img.loading = "lazy";
+        img.decoding = "async";
+        const url = bestImageUrl(rep, side);
+        if (url) {
+          img.dataset.src = url;
+          observeLazyImage(img);
+          img.addEventListener("click", () => {
+            const real = img.src || `${url}?v=${Date.now()}`;
+            openImage(`${s.name} • ${safeText(g.year)}${mintSuffix(g.mint)} • ${side === "rev" ? "Reverse" : "Obverse"}`, real);
+          });
+          img.addEventListener("error", () => {
+            const fallback = embeddedDataUrl(rep, side);
+            if (fallback && img.src !== fallback) img.src = fallback;
+          });
+        }
+        wrap.appendChild(img);
+        photos.appendChild(wrap);
       }
-      wrap.appendChild(img);
-      photos.appendChild(wrap);
+
+      coinBody.appendChild(photos);
+
+      const notes = safeText(rep.notes).trim();
+      if (notes) {
+        const kv = document.createElement("div");
+        kv.className = "kv";
+        const kk = document.createElement("div");
+        kk.className = "kv__k";
+        kk.textContent = "Notes";
+        const vv = document.createElement("div");
+        vv.className = "kv__v notes";
+        vv.textContent = notes;
+        kv.appendChild(kk);
+        kv.appendChild(vv);
+        coinBody.appendChild(kv);
+      }
+
+      coinDetails.appendChild(coinBody);
+      coinGrid.appendChild(coinDetails);
     }
 
-    body.appendChild(photos);
-
-    const kv = document.createElement("div");
-    kv.className = "kv";
-
-    const rows = [
-      ["Year", safeText(g.year) ? `${safeText(g.year)}${mintSuffix(g.mint)}` : "—"],
-      ["Type", safeText(g.type) || "—"],
-      ["Mint", safeText(g.mint) || "—"],
-      ["Notes", safeText(rep.notes).trim() || "—"],
-    ];
-
-    for (const [k, v] of rows) {
-      const kk = document.createElement("div");
-      kk.className = "kv__k";
-      kk.textContent = k;
-      const vv = document.createElement("div");
-      vv.className = "kv__v" + (k === "Notes" ? " notes" : "");
-      vv.textContent = v;
-      kv.appendChild(kk);
-      kv.appendChild(vv);
-    }
-
-    body.appendChild(kv);
+    body.appendChild(coinGrid);
     details.appendChild(body);
 
     frag.appendChild(details);
   }
 
-  els.list.appendChild(frag);
+  els.seriesGrid.appendChild(frag);
 }
 
 function saveToStorage() {
@@ -407,21 +440,25 @@ async function fetchCoinsJSON() {
 }
 
 async function load() {
+  setLoading(true, "Fetching coins.json");
   els.subtitle.textContent = "Loading…";
   els.meta.textContent = "—";
 
   // Prefer server coins.json.
   let loaded = null;
   try {
+    setLoading(true, "Fetching coins.json from GitHub Pages");
     loaded = await fetchCoinsJSON();
   } catch (e) {
+    setLoading(true, "Using saved data (offline)");
     loaded = loadFromStorage();
   }
 
   coins = loaded || [];
   groups = buildGroups(coins);
-  refreshSelects();
+  series = buildSeries(groups);
   applyFilters();
+  setLoading(false);
 }
 
 // Events
@@ -461,13 +498,11 @@ els.clearBtn.addEventListener("click", () => {
   localStorage.removeItem(STORAGE_KEY);
   coins = [];
   groups = [];
-  refreshSelects();
+  series = [];
   applyFilters();
 });
 
-for (const el of [els.typeSelect, els.nameSelect, els.yearSelect, els.mintSelect, els.sortSelect]) {
-  el.addEventListener("change", applyFilters);
-}
+els.sortSelect.addEventListener("change", applyFilters);
 els.searchInput.addEventListener("input", () => {
   // Small debounce for typing.
   clearTimeout(window.__qTimer);
@@ -481,4 +516,3 @@ els.closeImageBtn.addEventListener("click", () => {
 
 // Kick off
 load();
-

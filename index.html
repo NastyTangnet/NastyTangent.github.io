@@ -7,6 +7,15 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <div id="loadingOverlay" class="loading" aria-live="polite" aria-busy="true">
+      <div class="loading__card">
+        <div class="loading__mark" aria-hidden="true">CC</div>
+        <div class="loading__title">Loading Collection…</div>
+        <div class="loading__sub" id="loadingText">Fetching coins.json</div>
+        <div class="loading__bar" aria-hidden="true"><div class="loading__barFill"></div></div>
+      </div>
+    </div>
+
     <header class="topbar">
       <div class="topbar__left">
         <div class="mark" aria-hidden="true">CC</div>
@@ -27,60 +36,49 @@
     </header>
 
     <main class="page">
-      <section class="controls" aria-label="Filters">
-        <div class="controls__row">
-          <div class="field">
-            <label class="label" for="typeSelect">Type</label>
-            <select id="typeSelect" class="select">
-              <option value="">All</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label class="label" for="nameSelect">Coin</label>
-            <select id="nameSelect" class="select">
-              <option value="">All</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label class="label" for="yearSelect">Year</label>
-            <select id="yearSelect" class="select">
-              <option value="">All</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label class="label" for="mintSelect">Mint</label>
-            <select id="mintSelect" class="select">
-              <option value="">All</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label class="label" for="sortSelect">Sort</label>
-            <select id="sortSelect" class="select">
-              <option value="yearDesc">Year ↓</option>
-              <option value="yearAsc">Year ↑</option>
-              <option value="nameAsc">Name A–Z</option>
-              <option value="nameDesc">Name Z–A</option>
-              <option value="qtyDesc">Qty ↓</option>
-              <option value="qtyAsc">Qty ↑</option>
-            </select>
-          </div>
-        </div>
-
+      <section class="controls" aria-label="Browse">
         <div class="controls__row controls__row--search">
           <div class="field field--grow">
             <label class="label" for="searchInput">Search</label>
-            <input id="searchInput" class="input" placeholder="Search name, year, mint, notes…" />
+            <input id="searchInput" class="input" placeholder="Search coin type, year, mint, notes…" />
+          </div>
+          <div class="field">
+            <label class="label" for="sortSelect">Sort</label>
+            <select id="sortSelect" class="select">
+              <option value="nameAsc">A–Z</option>
+              <option value="nameDesc">Z–A</option>
+              <option value="qtyDesc">Most Coins</option>
+              <option value="qtyAsc">Fewest Coins</option>
+              <option value="yearOldest">Oldest</option>
+              <option value="yearNewest">Newest</option>
+            </select>
           </div>
           <div class="meta" id="meta">—</div>
         </div>
       </section>
 
       <section class="results" aria-label="Coins">
-        <div id="list" class="list" aria-live="polite"></div>
+        <div id="seriesGrid" class="seriesGrid" aria-live="polite"></div>
+      </section>
+
+      <section class="silver" aria-label="Silver (Coming Soon)">
+        <div class="silver__head">
+          <div>
+            <div class="silver__title">Silver</div>
+            <div class="silver__sub">Live spot price + graph coming soon.</div>
+          </div>
+          <div class="silver__pill">Coming soon</div>
+        </div>
+        <div class="silver__body">
+          <div class="silver__card">
+            <div class="silver__k">Spot (USD / oz)</div>
+            <div class="silver__v">$—</div>
+          </div>
+          <div class="silver__card silver__card--wide">
+            <div class="silver__k">Price Graph</div>
+            <div class="silver__graph" aria-hidden="true"></div>
+          </div>
+        </div>
       </section>
     </main>
 
@@ -97,4 +95,3 @@
     <script src="./app.js"></script>
   </body>
 </html>
-
