@@ -210,19 +210,27 @@ function imageUrlCandidates(coin, side) {
   const rawID = safeText(coin.id);
   const lower = rawID.toLowerCase();
   const upper = rawID.toUpperCase();
-  const sideFile = side === "rev" ? "rev.jpg" : "obv.jpg";
+  // Support multiple historical filename conventions from various exporters/publishers.
+  const sideFiles =
+    side === "rev"
+      ? ["rev.jpg", "reverse.jpg", "reverse_full.jpg", "reverse_thumb.jpg"]
+      : ["obv.jpg", "obverse.jpg", "obverse_full.jpg", "obverse_thumb.jpg"];
   const sideTag = side === "rev" ? "rev" : "obv";
 
   const out = [];
 
   // Folder-based (preferred)
-  if (lower) out.push(new URL(`coin-images/${lower}/${sideFile}`, BASE).toString());
-  if (upper && upper !== lower) out.push(new URL(`coin-images/${upper}/${sideFile}`, BASE).toString());
-  if (lower) out.push(new URL(`NastyTangent.github/coin-images/${lower}/${sideFile}`, BASE).toString());
-  if (upper && upper !== lower) out.push(new URL(`NastyTangent.github/coin-images/${upper}/${sideFile}`, BASE).toString());
+  for (const f of sideFiles) {
+    if (lower) out.push(new URL(`coin-images/${lower}/${f}`, BASE).toString());
+    if (upper && upper !== lower) out.push(new URL(`coin-images/${upper}/${f}`, BASE).toString());
+    if (lower) out.push(new URL(`NastyTangent.github/coin-images/${lower}/${f}`, BASE).toString());
+    if (upper && upper !== lower) out.push(new URL(`NastyTangent.github/coin-images/${upper}/${f}`, BASE).toString());
+  }
   // If your images live at repo-root under `NastyTangent.github/coin-images` (site served from `Website/`)
-  if (lower) out.push(new URL(`../NastyTangent.github/coin-images/${lower}/${sideFile}`, BASE).toString());
-  if (upper && upper !== lower) out.push(new URL(`../NastyTangent.github/coin-images/${upper}/${sideFile}`, BASE).toString());
+  for (const f of sideFiles) {
+    if (lower) out.push(new URL(`../NastyTangent.github/coin-images/${lower}/${f}`, BASE).toString());
+    if (upper && upper !== lower) out.push(new URL(`../NastyTangent.github/coin-images/${upper}/${f}`, BASE).toString());
+  }
 
   // Flat files (zip-style)
   if (upper) out.push(new URL(`coin-images/${upper}-${sideTag}.jpg`, BASE).toString());
@@ -239,8 +247,10 @@ function imageUrlCandidates(coin, side) {
   if (upper) out.push(new URL(`../NastyTangent.github/coin-images/images/${upper}-${sideTag}.jpg`, BASE).toString());
 
   // Repo-root fallback (if you moved coin-images outside the site folder)
-  if (lower) out.push(new URL(`../coin-images/${lower}/${sideFile}`, BASE).toString());
-  if (upper) out.push(new URL(`../coin-images/${upper}/${sideFile}`, BASE).toString());
+  for (const f of sideFiles) {
+    if (lower) out.push(new URL(`../coin-images/${lower}/${f}`, BASE).toString());
+    if (upper && upper !== lower) out.push(new URL(`../coin-images/${upper}/${f}`, BASE).toString());
+  }
 
   // De-dupe while preserving order.
   return [...new Set(out)];
