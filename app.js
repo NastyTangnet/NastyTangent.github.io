@@ -12,6 +12,20 @@ const BASE = new URL("./", window.location.href);
 // We only cache-bust `coins.json` when the user explicitly taps Reload.
 let coinsCacheBust = "";
 
+function pagesRootURL() {
+  // GitHub Pages for project sites is typically:
+  //   https://<user>.github.io/<repo>/
+  // with our site at:
+  //   https://<user>.github.io/<repo>/Website/
+  //
+  // We derive the repo root from the first path segment so image URLs work
+  // regardless of whether you're currently on `/Website/` or a hash route.
+  const parts = safeText(window.location.pathname).split("/").filter(Boolean);
+  const isGitHubPages = safeText(window.location.hostname).endsWith(".github.io");
+  if (isGitHubPages && parts.length) return new URL(`/${parts[0]}/`, window.location.origin);
+  return new URL("/", window.location.origin);
+}
+
 // Optional: a single-file BU cover sprite for your denomination icons.
 // If present, it greatly reduces requests (1 SVG file instead of many images).
 let buSpriteChecked = false;
@@ -215,28 +229,25 @@ function imageUrlCandidates(coin, side) {
 
   const out = [];
 
-  // Determine the repo base (needed when the site is served from /Website/).
-  const atWebsite = safeText(window.location.pathname).includes("/Website/");
-  const repoBase = atWebsite ? new URL("../", BASE) : BASE;
-
   // Folder-based (preferred): images live alongside the site.
   if (lower) out.push(new URL(`coin-images/${lower}/${sideFile}`, BASE).toString());
   if (upper && upper !== lower) out.push(new URL(`coin-images/${upper}/${sideFile}`, BASE).toString());
 
-  // Repo-root: images live under `NastyTangent.github/coin-images`.
-  if (lower) out.push(new URL(`NastyTangent.github/coin-images/${lower}/${sideFile}`, repoBase).toString());
-  if (upper && upper !== lower) out.push(new URL(`NastyTangent.github/coin-images/${upper}/${sideFile}`, repoBase).toString());
+  // Repo-root: images live under `NastyTangent.github/coin-images` at the repo root.
+  const repoRoot = pagesRootURL();
+  if (lower) out.push(new URL(`NastyTangent.github/coin-images/${lower}/${sideFile}`, repoRoot).toString());
+  if (upper && upper !== lower) out.push(new URL(`NastyTangent.github/coin-images/${upper}/${sideFile}`, repoRoot).toString());
 
   // Flat files (zip-style)
   if (upper) out.push(new URL(`coin-images/${upper}-${sideTag}.jpg`, BASE).toString());
   if (lower && lower !== upper) out.push(new URL(`coin-images/${lower}-${sideTag}.jpg`, BASE).toString());
-  if (upper) out.push(new URL(`NastyTangent.github/coin-images/${upper}-${sideTag}.jpg`, repoBase).toString());
-  if (lower && lower !== upper) out.push(new URL(`NastyTangent.github/coin-images/${lower}-${sideTag}.jpg`, repoBase).toString());
+  if (upper) out.push(new URL(`NastyTangent.github/coin-images/${upper}-${sideTag}.jpg`, repoRoot).toString());
+  if (lower && lower !== upper) out.push(new URL(`NastyTangent.github/coin-images/${lower}-${sideTag}.jpg`, repoRoot).toString());
 
   // If you kept an `images/` folder inside coin-images or at site root
   if (upper) out.push(new URL(`coin-images/images/${upper}-${sideTag}.jpg`, BASE).toString());
   if (upper) out.push(new URL(`images/${upper}-${sideTag}.jpg`, BASE).toString());
-  if (upper) out.push(new URL(`NastyTangent.github/coin-images/images/${upper}-${sideTag}.jpg`, repoBase).toString());
+  if (upper) out.push(new URL(`NastyTangent.github/coin-images/images/${upper}-${sideTag}.jpg`, repoRoot).toString());
 
   // De-dupe while preserving order.
   return [...new Set(out)];
