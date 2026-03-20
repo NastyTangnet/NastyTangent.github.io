@@ -12,7 +12,8 @@
         <div class="loading__mark" aria-hidden="true">CC</div>
         <div class="loading__title">Loading Collection…</div>
         <div class="loading__sub" id="loadingText">Fetching coins.json</div>
-        <div class="loading__bar" aria-hidden="true"><div class="loading__barFill"></div></div>
+        <div class="loading__pct" id="loadingPct">0%</div>
+        <div class="loading__bar" aria-hidden="true"><div class="loading__barFill is-indeterminate" id="loadingBarFill"></div></div>
       </div>
     </div>
 
@@ -55,6 +56,10 @@
           </div>
           <div class="meta" id="meta">—</div>
         </div>
+
+        <div class="chipsRow" aria-label="Type filter">
+          <div class="chips" id="typeChips"></div>
+        </div>
       </section>
 
       <section class="results" aria-label="Coins">
@@ -89,6 +94,38 @@
       </div>
       <div class="imgDialog__body">
         <img id="imgFull" class="imgDialog__img" alt="Coin photo" loading="lazy" decoding="async" />
+      </div>
+    </dialog>
+
+    <dialog id="coinDialog" class="coinDialog">
+      <div class="coinDialog__header">
+        <div>
+          <div class="coinDialog__title" id="coinTitle">Coin</div>
+          <div class="coinDialog__sub" id="coinSubtitle">—</div>
+        </div>
+        <button class="btn btn--ghost" id="closeCoinBtn" type="button">Close</button>
+      </div>
+      <div class="coinDialog__body">
+        <div class="coinDialog__photos">
+          <button class="photoTile" id="coinObvBtn" type="button" title="Open obverse">
+            <div class="photoTile__label">Obverse</div>
+            <img id="coinObvImg" alt="Obverse" loading="lazy" decoding="async" />
+          </button>
+          <button class="photoTile" id="coinRevBtn" type="button" title="Open reverse">
+            <div class="photoTile__label">Reverse</div>
+            <img id="coinRevImg" alt="Reverse" loading="lazy" decoding="async" />
+          </button>
+        </div>
+        <div class="kv kv--wide">
+          <div class="kv__k">Year</div>
+          <div class="kv__v" id="coinKVYear">—</div>
+          <div class="kv__k">Type</div>
+          <div class="kv__v" id="coinKVType">—</div>
+          <div class="kv__k">Mint</div>
+          <div class="kv__v" id="coinKVMint">—</div>
+          <div class="kv__k">Notes</div>
+          <div class="kv__v notes" id="coinKVNotes">—</div>
+        </div>
       </div>
     </dialog>
 

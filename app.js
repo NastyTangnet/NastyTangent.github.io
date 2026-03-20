@@ -19,6 +19,8 @@ const els = {
   seriesGrid: document.getElementById("seriesGrid"),
   loadingOverlay: document.getElementById("loadingOverlay"),
   loadingText: document.getElementById("loadingText"),
+  loadingPct: document.getElementById("loadingPct"),
+  loadingBarFill: document.getElementById("loadingBarFill"),
 
   reloadBtn: document.getElementById("reloadBtn"),
   fileInput: document.getElementById("fileInput"),
@@ -157,6 +159,19 @@ function setLoading(visible, text) {
   if (typeof text === "string" && els.loadingText) els.loadingText.textContent = text;
   if (visible) els.loadingOverlay.classList.remove("loading--hidden");
   else els.loadingOverlay.classList.add("loading--hidden");
+}
+
+function setLoadingProgress(pct, text) {
+  const p = Number.isFinite(pct) ? Math.min(1, Math.max(0, pct)) : 0;
+  if (typeof text === "string" && els.loadingText) els.loadingText.textContent = text;
+  if (els.loadingPct) els.loadingPct.textContent = `${Math.round(p * 100)}%`;
+
+  if (els.loadingBarFill) {
+    // Switch to determinate mode once we're updating by percent.
+    els.loadingBarFill.classList.remove("is-indeterminate");
+    const w = Math.max(2, Math.round(p * 100));
+    els.loadingBarFill.style.width = `${w}%`;
+  }
 }
 
 function applyFilters() {
@@ -431,16 +446,51 @@ function loadFromStorage() {
   }
 }
 
-async function fetchCoinsJSON() {
+async function fetchCoinsJSON(onProgress) {
   const url = new URL(`coins.json?v=${Date.now()}`, BASE);
   const resp = await fetch(url, { cache: "no-store" });
   if (!resp.ok) throw new Error(`Could not fetch coins.json (${resp.status}).`);
-  const json = await resp.json();
+
+  const lenHeader = resp.headers.get("content-length");
+  const total = lenHeader ? Number.parseInt(lenHeader, 10) : 0;
+
+  if (!resp.body || !Number.isFinite(total) || total <= 0) {
+    // Indeterminate load (no length). Keep the animated bar.
+    const json = await resp.json();
+    if (typeof onProgress === "function") onProgress(1);
+    return parseCoins(json);
+  }
+
+  const reader = resp.body.getReader();
+  const chunks = [];
+  let received = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.byteLength;
+    if (typeof onProgress === "function") onProgress(received / total);
+  }
+
+  const all = new Uint8Array(received);
+  let offset = 0;
+  for (const c of chunks) {
+    all.set(c, offset);
+    offset += c.byteLength;
+  }
+  const text = new TextDecoder("utf-8").decode(all);
+  const json = JSON.parse(text);
+  if (typeof onProgress === "function") onProgress(1);
   return parseCoins(json);
 }
 
 async function load() {
   setLoading(true, "Fetching coins.json");
+  if (els.loadingBarFill) {
+    els.loadingBarFill.classList.add("is-indeterminate");
+    els.loadingBarFill.style.width = "";
+  }
+  if (els.loadingPct) els.loadingPct.textContent = "0%";
   els.subtitle.textContent = "Loading…";
   els.meta.textContent = "—";
 
@@ -448,7 +498,7 @@ async function load() {
   let loaded = null;
   try {
     setLoading(true, "Fetching coins.json from GitHub Pages");
-    loaded = await fetchCoinsJSON();
+    loaded = await fetchCoinsJSON((p) => setLoadingProgress(p, "Loading coins.json…"));
   } catch (e) {
     setLoading(true, "Using saved data (offline)");
     loaded = loadFromStorage();
@@ -458,7 +508,14 @@ async function load() {
   groups = buildGroups(coins);
   series = buildSeries(groups);
   applyFilters();
-  setLoading(false);
+  setLoadingProgress(1, "Done");
+  // Let the bar reach 100% before fading out.
+  setTimeout(() => {
+    setLoading(false);
+    setTimeout(() => {
+      if (els.loadingOverlay) els.loadingOverlay.remove();
+    }, 240);
+  }, 260);
 }
 
 // Events
@@ -474,7 +531,7 @@ els.fileInput.addEventListener("change", async (ev) => {
     coins = parseCoins(JSON.parse(text));
     saveToStorage();
     groups = buildGroups(coins);
-    refreshSelects();
+    series = buildSeries(groups);
     applyFilters();
   } catch (e) {
     alert(`Import failed: ${e.message || e}`);

@@ -61,8 +61,9 @@ body {
 }
 .loading__title { font-weight: 900; letter-spacing: 0.2px; }
 .loading__sub { margin-top: 6px; color: var(--muted); font-size: 13px; }
+.loading__pct { margin-top: 10px; font-weight: 950; letter-spacing: 0.3px; }
 .loading__bar {
-  height: 10px;
+  height: 16px;
   border-radius: 999px;
   border: 1px solid rgba(238, 242, 248, 0.12);
   background: rgba(255, 255, 255, 0.06);
@@ -70,15 +71,20 @@ body {
   overflow: hidden;
 }
 .loading__barFill {
-  width: 44%;
+  width: 0%;
   height: 100%;
   background: linear-gradient(90deg, rgba(122, 227, 194, 0.55), rgba(122, 227, 194, 0.95), rgba(122, 227, 194, 0.55));
-  animation: loadPulse 1.2s ease-in-out infinite;
+  transition: width 140ms linear;
+  transform: translateX(0);
 }
-@keyframes loadPulse {
-  0% { transform: translateX(-35%); }
-  50% { transform: translateX(110%); }
-  100% { transform: translateX(-35%); }
+.loading__barFill.is-indeterminate {
+  width: 42%;
+  animation: loadIndet 1.2s ease-in-out infinite;
+}
+@keyframes loadIndet {
+  0% { transform: translateX(-70%); opacity: 0.75; }
+  50% { opacity: 1; }
+  100% { transform: translateX(210%); opacity: 0.75; }
 }
 
 .topbar {
@@ -177,6 +183,29 @@ body {
   white-space: nowrap;
 }
 
+.chipsRow { margin-top: 12px; }
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  border: 1px solid rgba(238, 242, 248, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-weight: 900;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.chip--active {
+  border-color: rgba(122, 227, 194, 0.55);
+  background: rgba(122, 227, 194, 0.12);
+  color: rgba(122, 227, 194, 0.98);
+}
+
 .results { margin-top: 14px; }
 .list { display: flex; flex-direction: column; gap: 10px; }
 
@@ -189,7 +218,7 @@ body {
 
 details.series {
   border: 1px solid var(--line);
-  background: rgba(18, 23, 32, 0.60);
+  background: rgba(18, 23, 32, 0.62);
   border-radius: var(--radius);
   overflow: clip;
 }
@@ -245,6 +274,16 @@ summary.coin__summary {
 .coin__title { font-weight: 900; }
 .coin__sub { margin-top: 4px; color: var(--muted); font-size: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
 .coin__body { border-top: 1px solid rgba(238, 242, 248, 0.10); padding: 10px 10px 12px; }
+
+.dupeBadge {
+  border: 1px solid rgba(238, 242, 248, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 950;
+  color: rgba(238, 242, 248, 0.92);
+}
 
 details.group {
   border: 1px solid var(--line);
@@ -332,6 +371,7 @@ summary::-webkit-details-marker { display: none; }
   gap: 8px 10px;
   font-size: 13px;
 }
+.kv--wide { grid-template-columns: 84px 1fr; }
 .kv__k { color: var(--muted); font-weight: 800; }
 .kv__v { color: var(--text); }
 .notes { white-space: pre-wrap; }
@@ -349,6 +389,54 @@ summary::-webkit-details-marker { display: none; }
 .imgDialog__title { font-weight: 900; letter-spacing: 0.2px; }
 .imgDialog__body { padding: 12px; }
 .imgDialog__img { width: 100%; height: auto; border-radius: 14px; background: rgba(255, 255, 255, 0.04); }
+
+.coinDialog {
+  width: min(980px, calc(100% - 22px));
+  border: 1px solid rgba(238, 242, 248, 0.16);
+  background: rgba(11, 13, 16, 0.92);
+  border-radius: 18px;
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.coinDialog::backdrop { background: rgba(0, 0, 0, 0.75); }
+.coinDialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px;
+  border-bottom: 1px solid rgba(238, 242, 248, 0.10);
+  gap: 12px;
+}
+.coinDialog__title { font-weight: 950; letter-spacing: 0.2px; }
+.coinDialog__sub { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.coinDialog__body { padding: 12px; }
+.coinDialog__photos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.photoTile {
+  border: 1px solid rgba(238, 242, 248, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+  aspect-ratio: 1 / 1;
+}
+.photoTile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photoTile__label {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  font-size: 12px;
+  font-weight: 950;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(11, 13, 16, 0.65);
+  border: 1px solid rgba(238, 242, 248, 0.10);
+}
 
 @media (max-width: 980px) {
   .controls__row { grid-template-columns: 1fr; }
