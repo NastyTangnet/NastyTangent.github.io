@@ -334,15 +334,8 @@ function sectionOrderIndex(title) {
 
 function coverCandidatesForSectionTitle(title) {
   const key = sectionKey(title);
-  // We try a few extensions so you can drop in whatever is easiest.
-  return [
-    new URL(`assets/covers/${key}.png`, BASE).toString(),
-    new URL(`assets/covers/${key}.jpg`, BASE).toString(),
-    new URL(`assets/covers/${key}.jpeg`, BASE).toString(),
-    new URL(`assets/covers/${key}.webp`, BASE).toString(),
-    // SVG is a last-resort fallback (so your real BU photos win if you add them).
-    new URL(`assets/covers/${key}.svg`, BASE).toString(),
-  ];
+  // Covers: only use PNGs (no SVG fallback).
+  return [new URL(`assets/covers/${key}.png`, BASE).toString()];
 }
 
 function rangeText(minYear, maxYear) {
