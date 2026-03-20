@@ -150,17 +150,9 @@ function ensureBuSpriteChecked() {
   if (buSpriteChecked) return;
   buSpriteChecked = true;
 
-  // One lightweight probe; if it fails we just fall back to photos.
-  fetch(buSpriteUrl(), { method: "HEAD", cache: "force-cache" })
-    .then((r) => {
-      buSpriteOk = !!r && r.ok;
-    })
-    .catch(() => {
-      buSpriteOk = false;
-    })
-    .finally(() => {
-      applyFilters();
-    });
+  // Disabled: always prefer PNG covers over an SVG sprite.
+  // (User explicitly requested "no SVG".)
+  buSpriteOk = false;
 }
 
 function makeBuSpriteIcon(title) {
