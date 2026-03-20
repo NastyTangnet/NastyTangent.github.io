@@ -129,13 +129,7 @@ body {
   border: 0;
 }
 
-.topbarSearch { width: min(560px, 52vw); }
-.input--topbar {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid var(--line);
-  padding: 10px 12px;
-}
-.input--topbar::placeholder { color: rgba(17, 19, 24, 0.45); }
+.topbarSearch { width: min(560px, 52vw); flex: 1; min-width: 220px; }
 .topbarMeta { padding-bottom: 0; }
 
 .typeGrid {
@@ -337,14 +331,20 @@ body {
 .input, .select {
   width: 100%;
   border-radius: 12px;
-  border: 1px solid rgba(238, 242, 248, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.92);
   color: var(--text);
   padding: 10px 10px;
   outline: none;
 }
-.input::placeholder { color: rgba(238, 242, 248, 0.40); }
+.input::placeholder { color: rgba(17, 19, 24, 0.45); }
 .input:focus, .select:focus { border-color: rgba(46, 125, 107, 0.50); box-shadow: 0 0 0 3px rgba(46, 125, 107, 0.14); }
+
+/* Extra clarity in the banner. Needs higher specificity than `.input`. */
+.topbar .input.input--topbar {
+  padding: 10px 12px;
+  box-shadow: 0 8px 18px rgba(10, 12, 16, 0.06);
+}
 
 .meta {
   font-size: 12px;
