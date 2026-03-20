@@ -236,11 +236,19 @@ function makeThumb(coin) {
     img.addEventListener("error", () => {
       // Fallback to embedded if file 404s (or vice versa).
       const fallback = embeddedDataUrl(coin, "obv");
-      if (fallback && img.src !== fallback) img.src = fallback;
+      if (fallback && img.src !== fallback) {
+        img.src = fallback;
+        return;
+      }
+      // No fallback: hide the broken-image icon.
+      img.removeAttribute("src");
+      img.style.display = "none";
+      wrap.classList.add("is-missing");
     });
     observeLazyImage(img);
   } else {
     img.style.display = "none";
+    wrap.classList.add("is-missing");
   }
 
   wrap.appendChild(img);
@@ -390,8 +398,16 @@ function renderSeries(arr) {
           });
           img.addEventListener("error", () => {
             const fallback = embeddedDataUrl(rep, side);
-            if (fallback && img.src !== fallback) img.src = fallback;
+            if (fallback && img.src !== fallback) {
+              img.src = fallback;
+              return;
+            }
+            img.removeAttribute("src");
+            img.style.display = "none";
+            wrap.classList.add("is-missing");
           });
+        } else {
+          wrap.classList.add("is-missing");
         }
         wrap.appendChild(img);
         photos.appendChild(wrap);

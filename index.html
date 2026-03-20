@@ -56,10 +56,6 @@
           </div>
           <div class="meta" id="meta">—</div>
         </div>
-
-        <div class="chipsRow" aria-label="Type filter">
-          <div class="chips" id="typeChips"></div>
-        </div>
       </section>
 
       <section class="results" aria-label="Coins">
@@ -97,35 +93,17 @@
       </div>
     </dialog>
 
-    <dialog id="coinDialog" class="coinDialog">
-      <div class="coinDialog__header">
-        <div>
-          <div class="coinDialog__title" id="coinTitle">Coin</div>
-          <div class="coinDialog__sub" id="coinSubtitle">—</div>
+    <dialog id="layerDialog" class="layerDialog">
+      <div class="layerDialog__header">
+        <button class="btn btn--ghost" id="layerBackBtn" type="button">Back</button>
+        <div class="layerDialog__titles">
+          <div class="layerDialog__title" id="layerTitle">—</div>
+          <div class="layerDialog__sub" id="layerSub">—</div>
         </div>
-        <button class="btn btn--ghost" id="closeCoinBtn" type="button">Close</button>
+        <button class="btn btn--ghost" id="layerCloseBtn" type="button">Close</button>
       </div>
-      <div class="coinDialog__body">
-        <div class="coinDialog__photos">
-          <button class="photoTile" id="coinObvBtn" type="button" title="Open obverse">
-            <div class="photoTile__label">Obverse</div>
-            <img id="coinObvImg" alt="Obverse" loading="lazy" decoding="async" />
-          </button>
-          <button class="photoTile" id="coinRevBtn" type="button" title="Open reverse">
-            <div class="photoTile__label">Reverse</div>
-            <img id="coinRevImg" alt="Reverse" loading="lazy" decoding="async" />
-          </button>
-        </div>
-        <div class="kv kv--wide">
-          <div class="kv__k">Year</div>
-          <div class="kv__v" id="coinKVYear">—</div>
-          <div class="kv__k">Type</div>
-          <div class="kv__v" id="coinKVType">—</div>
-          <div class="kv__k">Mint</div>
-          <div class="kv__v" id="coinKVMint">—</div>
-          <div class="kv__k">Notes</div>
-          <div class="kv__v notes" id="coinKVNotes">—</div>
-        </div>
+      <div class="layerDialog__body">
+        <div id="layerList" class="layerList" aria-live="polite"></div>
       </div>
     </dialog>
 
