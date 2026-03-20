@@ -81,12 +81,17 @@ const els = {
   detailType: document.getElementById("detailType"),
   detailMint: document.getElementById("detailMint"),
   detailNotes: document.getElementById("detailNotes"),
+
+  detailDupes: document.getElementById("detailDupes"),
+  detailDupesTitle: document.getElementById("detailDupesTitle"),
+  detailDupesList: document.getElementById("detailDupesList"),
 };
 
 let layerState = {
   mode: "list", // "list" | "detail"
   series: null,
   group: null,
+  coinId: null, // selected coin within group
 };
 
 function safeText(v) {
@@ -639,7 +644,7 @@ function openImage(title, src) {
 
 function openLayerForSeries(s) {
   if (!els.layerDialog) return;
-  layerState = { mode: "list", series: s, group: null };
+  layerState = { mode: "list", series: s, group: null, coinId: null };
   renderLayer();
 
   if (typeof els.layerDialog.showModal === "function") els.layerDialog.showModal();
@@ -720,7 +725,8 @@ function renderLayerList(s) {
     card.appendChild(head);
 
     head.addEventListener("click", () => {
-      layerState = { mode: "detail", series: s, group: g };
+      const firstCoin = g.items && g.items[0] ? g.items[0] : null;
+      layerState = { mode: "detail", series: s, group: g, coinId: firstCoin ? safeText(firstCoin.id) : null };
       renderLayer();
     });
 
@@ -731,13 +737,13 @@ function renderLayerList(s) {
 }
 
 function renderLayerDetail(s, g) {
-  const rep = g.items[0];
+  const rep = (g.items || []).find((c) => safeText(c.id) && safeText(c.id) === safeText(layerState.coinId)) || g.items[0];
   const yearText = safeText(g.year) ? `${safeText(g.year)}${mintSuffix(g.mint)}` : "—";
 
   els.detailYear.textContent = yearText;
   els.detailType.textContent = safeText(g.type) || "—";
   els.detailMint.textContent = safeText(g.mint) || "—";
-  els.detailNotes.textContent = safeText(rep.notes).trim() || "—";
+  els.detailNotes.textContent = safeText(rep && rep.notes).trim() || "—";
 
   const setImg = (imgEl, candidates, embedded) => {
     const tile = imgEl.closest(".photoTile");
@@ -777,8 +783,8 @@ function renderLayerDetail(s, g) {
     };
   };
 
-  setImg(els.detailObvImg, imageUrlCandidates(rep, "obv"), embeddedDataUrl(rep, "obv"));
-  setImg(els.detailRevImg, imageUrlCandidates(rep, "rev"), embeddedDataUrl(rep, "rev"));
+  setImg(els.detailObvImg, rep ? imageUrlCandidates(rep, "obv") : [], rep ? embeddedDataUrl(rep, "obv") : null);
+  setImg(els.detailRevImg, rep ? imageUrlCandidates(rep, "rev") : [], rep ? embeddedDataUrl(rep, "rev") : null);
 
   els.detailObvBtn.onclick = () => {
     if (els.detailObvImg.src) openImage(`${s.name} • ${yearText} • Obverse`, els.detailObvImg.src);
@@ -786,6 +792,74 @@ function renderLayerDetail(s, g) {
   els.detailRevBtn.onclick = () => {
     if (els.detailRevImg.src) openImage(`${s.name} • ${yearText} • Reverse`, els.detailRevImg.src);
   };
+
+  // Duplicates list (when multiple coins share the same name+year+mint).
+  const items = Array.isArray(g.items) ? g.items : [];
+  if (els.detailDupes && els.detailDupesList && els.detailDupesTitle) {
+    if (items.length <= 1) {
+      els.detailDupes.hidden = true;
+      els.detailDupesList.innerHTML = "";
+    } else {
+      els.detailDupes.hidden = false;
+      els.detailDupesTitle.textContent = `Duplicates (x${items.length})`;
+      els.detailDupesList.innerHTML = "";
+
+      const sorted = [...items].sort((a, b) => safeText(a.id).localeCompare(safeText(b.id)));
+      sorted.forEach((c, idx) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "dupeRow";
+        if (safeText(c.id) === safeText(layerState.coinId)) btn.classList.add("is-active");
+
+        const thumb = document.createElement("div");
+        thumb.className = "dupeThumb";
+        const img = document.createElement("img");
+        img.alt = "Obverse";
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.referrerPolicy = "no-referrer";
+        const cand = imageUrlCandidates(c, "obv");
+        const emb = embeddedDataUrl(c, "obv");
+        img.src = cand[0] || emb || "";
+        img.onerror = () => {
+          const next = cand.find((u) => u && img.src.indexOf(u) === -1);
+          if (next) img.src = next;
+          else if (emb && img.src !== emb) img.src = emb;
+        };
+        if (img.src) thumb.appendChild(img);
+        btn.appendChild(thumb);
+
+        const meta = document.createElement("div");
+        meta.className = "dupeMeta";
+
+        const top = document.createElement("div");
+        top.className = "dupeMeta__top";
+        const iEl = document.createElement("div");
+        iEl.className = "dupeMeta__idx";
+        iEl.textContent = `#${idx + 1}`;
+        const idEl = document.createElement("div");
+        idEl.className = "dupeMeta__id";
+        idEl.textContent = safeText(c.id);
+        top.appendChild(iEl);
+        top.appendChild(idEl);
+
+        const notes = document.createElement("div");
+        notes.className = "dupeMeta__notes";
+        notes.textContent = safeText(c.notes).trim() || "(no notes)";
+
+        meta.appendChild(top);
+        meta.appendChild(notes);
+        btn.appendChild(meta);
+
+        btn.addEventListener("click", () => {
+          layerState.coinId = safeText(c.id) || null;
+          renderLayerDetail(s, g);
+        });
+
+        els.detailDupesList.appendChild(btn);
+      });
+    }
+  }
 }
 
 function renderTypeGrid(arr) {
