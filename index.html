@@ -47,28 +47,45 @@
         </div>
       </section>
 
-      <section class="results" aria-label="Coins">
-        <div id="typeGrid" class="typeGrid" aria-live="polite"></div>
+      <section id="homeView" class="homeView" aria-label="Home">
+        <section class="results" aria-label="Coins">
+          <div id="typeGrid" class="typeGrid" aria-live="polite"></div>
+        </section>
+
+        <section class="silver" aria-label="Silver (Coming Soon)">
+          <div class="silver__head">
+            <div>
+              <div class="silver__title">Silver</div>
+              <div class="silver__sub">Live spot price + graph coming soon.</div>
+            </div>
+            <div class="silver__pill">Coming soon</div>
+          </div>
+          <div class="silver__body">
+            <div class="silver__card">
+              <div class="silver__k">Spot (USD / oz)</div>
+              <div class="silver__v">$—</div>
+            </div>
+            <div class="silver__card silver__card--wide">
+              <div class="silver__k">Price Graph</div>
+              <div class="silver__graph" aria-hidden="true"></div>
+            </div>
+          </div>
+        </section>
       </section>
 
-      <section class="silver" aria-label="Silver (Coming Soon)">
-        <div class="silver__head">
-          <div>
-            <div class="silver__title">Silver</div>
-            <div class="silver__sub">Live spot price + graph coming soon.</div>
+      <section id="typeView" class="typeView" aria-label="Coin Type" hidden>
+        <div class="typeView__head">
+          <button class="btn btn--ghost" id="typeBackBtn" type="button">Back</button>
+
+          <div class="typeView__titles">
+            <div class="typeView__title" id="typeViewTitle">—</div>
+            <div class="typeView__sub" id="typeViewSub">—</div>
           </div>
-          <div class="silver__pill">Coming soon</div>
+
+          <div class="typeView__icon" id="typeViewIcon" aria-hidden="true"></div>
         </div>
-        <div class="silver__body">
-          <div class="silver__card">
-            <div class="silver__k">Spot (USD / oz)</div>
-            <div class="silver__v">$—</div>
-          </div>
-          <div class="silver__card silver__card--wide">
-            <div class="silver__k">Price Graph</div>
-            <div class="silver__graph" aria-hidden="true"></div>
-          </div>
-        </div>
+
+        <div id="typeViewList" class="typeView__list" aria-live="polite"></div>
       </section>
     </main>
 

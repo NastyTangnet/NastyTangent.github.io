@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <radialGradient id="g" cx="35%" cy="30%" r="75%">
+      <stop offset="0" stop-color="#ffe7cf"/>
+      <stop offset="0.55" stop-color="#d9965e"/>
+      <stop offset="1" stop-color="#9a5c2c"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7a3f1b"/>
+      <stop offset="1" stop-color="#5a2b10"/>
+    </linearGradient>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000000" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#s)">
+    <circle cx="128" cy="128" r="116" fill="url(#g)" stroke="url(#rim)" stroke-width="10"/>
+    <circle cx="128" cy="128" r="96" fill="none" stroke="#5a2b10" stroke-opacity="0.25" stroke-width="2"/>
+  </g>
+
+  <g>
+    <rect x="34" y="34" width="70" height="34" rx="17" fill="#2e7d6b" opacity="0.95"/>
+    <text x="69" y="57" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="18" font-weight="900" fill="#ffffff">BU</text>
+  </g>
+
+  <!-- Simple “Lincoln-ish” silhouette -->
+  <path d="M150 84c-18-16-44-10-54 10-10 18-4 46 10 60 14 14 40 20 58 6 10-8 10-18 4-28-4-7-7-15-5-22 2-9-1-18-13-26Z"
+        fill="#3b1b0b" fill-opacity="0.26"/>
+
+  <text x="128" y="214" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="34" font-weight="950" fill="#1b2028">1¢</text>
+</svg>
+

@@ -17,11 +17,19 @@ const STORAGE_KEY = "jpcc_coins_v2";
 let coins = [];
 let groups = []; // grouped by name+year+mint
 let sections = []; // grouped by coin.type (each contains series rows)
+let currentTypeTitle = null;
 
 const els = {
   subtitle: document.getElementById("subtitle"),
   meta: document.getElementById("meta"),
   typeGrid: document.getElementById("typeGrid"),
+  homeView: document.getElementById("homeView"),
+  typeView: document.getElementById("typeView"),
+  typeBackBtn: document.getElementById("typeBackBtn"),
+  typeViewTitle: document.getElementById("typeViewTitle"),
+  typeViewSub: document.getElementById("typeViewSub"),
+  typeViewIcon: document.getElementById("typeViewIcon"),
+  typeViewList: document.getElementById("typeViewList"),
   loadingOverlay: document.getElementById("loadingOverlay"),
   loadingText: document.getElementById("loadingText"),
   loadingPct: document.getElementById("loadingPct"),
@@ -74,6 +82,27 @@ function escapeHtml(s) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function getRouteTypeFromHash() {
+  const h = safeText(window.location.hash || "");
+  if (!h.startsWith("#type=")) return null;
+  try {
+    return decodeURIComponent(h.slice("#type=".length)).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function setRouteToHome() {
+  if (window.location.hash) window.location.hash = "";
+  currentTypeTitle = null;
+}
+
+function setRouteToType(title) {
+  const t = safeText(title).trim();
+  if (!t) return;
+  window.location.hash = `#type=${encodeURIComponent(t)}`;
 }
 
 function year4(coinYear) {
@@ -194,18 +223,41 @@ function buildGroups(coinsArr) {
   return out;
 }
 
+const SECTION_ORDER = ["Dollar", "Penny", "Commemoratives", "Nickel", "Dime", "Quarter", "Half Dollar"];
+
 function typeSectionTitle(typeRaw) {
   const t = safeText(typeRaw).trim();
   if (!t) return "Other";
   const low = t.toLowerCase();
-  if (low === "dollar") return "Dollars";
-  if (low === "half dollar") return "Half Dollars";
-  if (low === "quarter") return "Quarters";
-  if (low === "dime") return "Dimes";
-  if (low === "nickel") return "Nickels";
-  if (low === "cent" || low === "penny") return "Cents";
-  if (t.endsWith("s")) return t;
-  return `${t}s`;
+
+  // Normalize to your preferred buckets.
+  if (low.includes("commemor")) return "Commemoratives";
+  if (low.includes("half") && low.includes("dollar")) return "Half Dollar";
+  if (low.includes("dollar")) return "Dollar";
+  if (low.includes("quarter")) return "Quarter";
+  if (low.includes("dime")) return "Dime";
+  if (low.includes("nickel")) return "Nickel";
+  if (low.includes("cent") || low.includes("penny")) return "Penny";
+
+  // Otherwise keep the original type (Title Case-ish).
+  return t;
+}
+
+function sectionOrderIndex(title) {
+  const i = SECTION_ORDER.indexOf(title);
+  return i === -1 ? 999 : i;
+}
+
+function coverCandidatesForSectionTitle(title) {
+  const key = safeText(title).toLowerCase().replaceAll(" ", "_");
+  // We try a few extensions so you can drop in whatever is easiest.
+  return [
+    new URL(`assets/covers/${key}.svg`, BASE).toString(),
+    new URL(`assets/covers/${key}.png`, BASE).toString(),
+    new URL(`assets/covers/${key}.jpg`, BASE).toString(),
+    new URL(`assets/covers/${key}.jpeg`, BASE).toString(),
+    new URL(`assets/covers/${key}.webp`, BASE).toString(),
+  ];
 }
 
 function rangeText(minYear, maxYear) {
@@ -268,7 +320,7 @@ function buildSections(groupsArr) {
     });
   }
 
-  out.sort((a, b) => a.title.localeCompare(b.title));
+  out.sort((a, b) => sectionOrderIndex(a.title) - sectionOrderIndex(b.title) || a.title.localeCompare(b.title));
   return out;
 }
 
@@ -313,13 +365,121 @@ function applyFilters() {
       .filter(Boolean);
   }
 
-  renderTypeGrid(filteredSections);
+  const routeType = getRouteTypeFromHash();
+  currentTypeTitle = routeType;
+
+  if (currentTypeTitle) {
+    const sec = filteredSections.find((s) => s.title === currentTypeTitle) || sections.find((s) => s.title === currentTypeTitle);
+    renderTypeView(sec || null, q);
+  } else {
+    renderHomeView(filteredSections);
+  }
 
   const totalCoins = coins.length;
   const shownCoins = filteredSections.reduce((sum, sec) => sum + sec.qty, 0);
   const shownSeries = filteredSections.reduce((sum, sec) => sum + sec.series.length, 0);
   els.meta.textContent = `Showing ${filteredSections.length} section(s), ${shownSeries} series, ${shownCoins} coin(s)`;
   els.subtitle.textContent = `${totalCoins} coins • ${sections.length} sections`;
+}
+
+function renderHomeView(arr) {
+  if (els.homeView) els.homeView.hidden = false;
+  if (els.typeView) els.typeView.hidden = true;
+  renderTypeGrid(arr);
+}
+
+function setIconFromCandidates(hostEl, candidates, embedded) {
+  hostEl.innerHTML = "";
+  hostEl.classList.remove("is-missing");
+
+  const first = (candidates && candidates.length ? candidates[0] : null) || embedded;
+  if (!first) {
+    hostEl.classList.add("is-missing");
+    return;
+  }
+
+  const img = document.createElement("img");
+  img.alt = "";
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.referrerPolicy = "no-referrer";
+  img.src = first;
+  img.addEventListener("error", () => {
+    const next = candidates ? candidates.find((u) => u && img.src.indexOf(u) === -1) : null;
+    if (next) {
+      img.src = next;
+      return;
+    }
+    if (embedded && img.src !== embedded) {
+      img.src = embedded;
+      return;
+    }
+    img.removeAttribute("src");
+    img.style.display = "none";
+    hostEl.classList.add("is-missing");
+  });
+  hostEl.appendChild(img);
+}
+
+function renderTypeView(sec, qLower) {
+  if (!els.typeView) return;
+  if (els.homeView) els.homeView.hidden = true;
+  els.typeView.hidden = false;
+
+  const title = sec ? sec.title : safeText(currentTypeTitle) || "—";
+  const seriesArr = sec ? sec.series : [];
+  const qty = sec ? sec.qty : 0;
+  const years = seriesArr.map((s) => safeText(s.minYear)).concat(seriesArr.map((s) => safeText(s.maxYear))).filter(Boolean);
+  const minYear = years.length ? years.reduce((a, b) => (a.localeCompare(b) <= 0 ? a : b)) : "";
+  const maxYear = years.length ? years.reduce((a, b) => (a.localeCompare(b) >= 0 ? a : b)) : "";
+  const yr = minYear && maxYear ? `${minYear}–${maxYear}` : "—";
+
+  if (els.typeViewTitle) els.typeViewTitle.textContent = title;
+  if (els.typeViewSub) els.typeViewSub.textContent = `${yr} • ${qty} coin(s)`;
+
+  if (els.typeViewIcon) {
+    const coverCandidates = coverCandidatesForSectionTitle(title);
+    const rep = sec && sec.repCoin ? sec.repCoin : null;
+    const photoCandidates = rep ? imageUrlCandidates(rep, "obv") : [];
+    const embedded = rep ? embeddedDataUrl(rep, "obv") : null;
+    setIconFromCandidates(els.typeViewIcon, [...coverCandidates, ...photoCandidates], embedded);
+  }
+
+  if (!els.typeViewList) return;
+  els.typeViewList.innerHTML = "";
+
+  if (!sec) {
+    const empty = document.createElement("div");
+    empty.style.padding = "14px";
+    empty.style.color = "rgba(17, 19, 24, 0.60)";
+    empty.style.fontWeight = "750";
+    empty.textContent = "No coins found for this type.";
+    els.typeViewList.appendChild(empty);
+    return;
+  }
+
+  // Already filtered by applyFilters when q is present, but keep it safe.
+  const listArr = qLower ? seriesArr.filter((s) => safeText(s.name).toLowerCase().includes(qLower)) : seriesArr;
+
+  for (const s of listArr) {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "typeViewRow";
+
+    const left = document.createElement("div");
+    left.className = "typeViewRow__name";
+    const range = rangeText(s.minYear, s.maxYear);
+    left.innerHTML = `${escapeHtml(s.name)} <span class="typeViewRow__range">${escapeHtml(range)}</span>`;
+
+    const right = document.createElement("div");
+    right.className = "typeViewRow__qty";
+    right.textContent = `x${Number(s.qty || 0)}`;
+
+    row.appendChild(left);
+    row.appendChild(right);
+    row.addEventListener("click", () => openLayerForSeries(s));
+    els.typeViewList.appendChild(row);
+  }
 }
 
 function makeThumb(coin) {
@@ -549,6 +709,7 @@ function renderTypeGrid(arr) {
   for (const sec of arr) {
     const card = document.createElement("section");
     card.className = "typeCard";
+    card.addEventListener("click", () => setRouteToType(sec.title));
 
     const head = document.createElement("div");
     head.className = "typeCard__head";
@@ -561,8 +722,11 @@ function renderTypeGrid(arr) {
     icon.className = "typeCard__icon";
 
     const rep = sec.repCoin;
-    const candidates = rep ? imageUrlCandidates(rep, "obv") : [];
+    const coverCandidates = coverCandidatesForSectionTitle(sec.title);
+    const photoCandidates = rep ? imageUrlCandidates(rep, "obv") : [];
     const embedded = rep ? embeddedDataUrl(rep, "obv") : null;
+
+    const candidates = [...coverCandidates, ...photoCandidates].filter(Boolean);
     const first = candidates[0] || embedded;
 
     if (!first) {
@@ -574,8 +738,8 @@ function renderTypeGrid(arr) {
       img.decoding = "async";
       img.referrerPolicy = "no-referrer";
       img.src = first;
+
       img.addEventListener("error", () => {
-        // Try next candidate(s), then embedded.
         const next = candidates.find((u) => u && img.src.indexOf(u) === -1);
         if (next) {
           img.src = next;
@@ -589,6 +753,7 @@ function renderTypeGrid(arr) {
         img.style.display = "none";
         icon.classList.add("is-missing");
       });
+
       icon.appendChild(img);
     }
 
@@ -608,6 +773,10 @@ function renderTypeGrid(arr) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "typeItem";
+      btn.addEventListener("click", (ev) => {
+        // Don't also trigger the section navigation.
+        ev.stopPropagation();
+      });
 
       const range = rangeText(s.minYear, s.maxYear);
       btn.innerHTML = `${escapeHtml(s.name)} <span class="typeItem__range">${escapeHtml(range)}</span> <span class="typeItem__qty">x${Number(
@@ -775,6 +944,11 @@ els.closeImageBtn.addEventListener("click", () => {
   els.imageDialog.close();
 });
 
+els.typeBackBtn.addEventListener("click", () => {
+  setRouteToHome();
+  applyFilters();
+});
+
 els.layerBackBtn.addEventListener("click", () => {
   // If we're on the detail screen, go back to the list. Otherwise close.
   if (layerState.mode === "detail") {
@@ -787,6 +961,10 @@ els.layerBackBtn.addEventListener("click", () => {
 
 els.layerCloseBtn.addEventListener("click", () => {
   els.layerDialog.close();
+});
+
+window.addEventListener("hashchange", () => {
+  applyFilters();
 });
 
 // Kick off
