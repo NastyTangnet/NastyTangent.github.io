@@ -111,23 +111,44 @@ function embeddedDataUrl(coin, side) {
   return `data:image/jpeg;base64,${raw}`;
 }
 
-function fileImageUrl(coin, side) {
-  // Your repo stores images at:
-  // `NastyTangent.github/coin-images/<id>/obv.jpg` and `rev.jpg`
-  // So relative to this page (`.../NastyTangent.github/`) the correct URL is `coin-images/...`.
-  // We keep a fallback to `../coin-images/...` just in case you later move them to repo root.
-  const id = safeText(coin.id).toLowerCase();
-  if (!id) return null;
-  const name = side === "rev" ? "rev.jpg" : "obv.jpg";
-  const primary = new URL(`coin-images/${id}/${name}`, BASE).toString();
-  const fallback = new URL(`../coin-images/${id}/${name}`, BASE).toString();
-  return { primary, fallback };
+function imageUrlCandidates(coin, side) {
+  // We try multiple patterns because your repo may contain either:
+  // - `coin-images/<uuid-lower>/obv.jpg` (current app uploader)
+  // - `coin-images/<uuid-upper>/obv.jpg`
+  // - `coin-images/<UUID>-obv.jpg` (older zip exports)
+  // - `coin-images/images/<UUID>-obv.jpg` (if you kept the "images/" folder)
+  const rawID = safeText(coin.id);
+  const lower = rawID.toLowerCase();
+  const upper = rawID.toUpperCase();
+  const sideFile = side === "rev" ? "rev.jpg" : "obv.jpg";
+  const sideTag = side === "rev" ? "rev" : "obv";
+
+  const out = [];
+
+  // Folder-based (preferred)
+  if (lower) out.push(new URL(`coin-images/${lower}/${sideFile}`, BASE).toString());
+  if (upper && upper !== lower) out.push(new URL(`coin-images/${upper}/${sideFile}`, BASE).toString());
+
+  // Flat files (zip-style)
+  if (upper) out.push(new URL(`coin-images/${upper}-${sideTag}.jpg`, BASE).toString());
+  if (lower && lower !== upper) out.push(new URL(`coin-images/${lower}-${sideTag}.jpg`, BASE).toString());
+
+  // If you kept an `images/` folder inside coin-images or at site root
+  if (upper) out.push(new URL(`coin-images/images/${upper}-${sideTag}.jpg`, BASE).toString());
+  if (upper) out.push(new URL(`images/${upper}-${sideTag}.jpg`, BASE).toString());
+
+  // Repo-root fallback (if you moved coin-images outside the site folder)
+  if (lower) out.push(new URL(`../coin-images/${lower}/${sideFile}`, BASE).toString());
+  if (upper) out.push(new URL(`../coin-images/${upper}/${sideFile}`, BASE).toString());
+
+  // De-dupe while preserving order.
+  return [...new Set(out)];
 }
 
 function bestImageUrl(coin, side) {
-  // Prefer real uploaded files, then embedded thumbs (if present), otherwise null.
-  const f = fileImageUrl(coin, side);
-  if (f) return f.primary;
+  // Prefer file images (first candidate), then embedded thumbs (if present), otherwise null.
+  const candidates = imageUrlCandidates(coin, side);
+  if (candidates.length) return candidates[0];
   return embeddedDataUrl(coin, side) || null;
 }
 
@@ -257,22 +278,24 @@ function makeThumb(coin) {
   img.decoding = "async";
 
   // Lazy load only when visible.
-  const url = bestImageUrl(coin, "obv");
-  if (url) {
-    img.dataset.src = url;
+  const candidates = imageUrlCandidates(coin, "obv");
+  const embedded = embeddedDataUrl(coin, "obv");
+
+  if (candidates.length || embedded) {
+    img.dataset.src = candidates[0] || embedded;
     img.referrerPolicy = "no-referrer";
     img.addEventListener("error", () => {
-      // Fallback: try local coin-images path, then embedded.
-      const f = fileImageUrl(coin, "obv");
-      if (f && img.src !== f.fallback) {
-        img.src = f.fallback;
+      // Try next candidate(s), then embedded.
+      const next = candidates.find((u) => u && img.src.indexOf(u) === -1);
+      if (next) {
+        img.src = `${next}?v=${Date.now()}`;
         return;
       }
-      const embedded = embeddedDataUrl(coin, "obv");
       if (embedded && img.src !== embedded) {
         img.src = embedded;
         return;
       }
+
       // No fallback: hide the broken-image icon.
       img.removeAttribute("src");
       img.style.display = "none";
@@ -415,18 +438,15 @@ function renderLayerDetail(s, g) {
   els.detailMint.textContent = safeText(g.mint) || "—";
   els.detailNotes.textContent = safeText(rep.notes).trim() || "—";
 
-  // Images: try root, then local, then embedded.
-  const obv = fileImageUrl(rep, "obv");
-  const rev = fileImageUrl(rep, "rev");
-
-  const setImg = (imgEl, urls, embedded) => {
+  const setImg = (imgEl, candidates, embedded) => {
     imgEl.removeAttribute("src");
-    if (!urls && !embedded) return;
-    const first = urls ? urls.primary : null;
+    if ((!candidates || !candidates.length) && !embedded) return;
+    const first = candidates && candidates.length ? candidates[0] : embedded;
     if (first) imgEl.src = `${first}?v=${Date.now()}`;
     imgEl.onerror = () => {
-      if (urls && imgEl.src !== urls.fallback) {
-        imgEl.src = urls.fallback;
+      const next = candidates ? candidates.find((u) => u && imgEl.src.indexOf(u) === -1) : null;
+      if (next) {
+        imgEl.src = `${next}?v=${Date.now()}`;
         return;
       }
       if (embedded && imgEl.src !== embedded) {
@@ -435,8 +455,8 @@ function renderLayerDetail(s, g) {
     };
   };
 
-  setImg(els.detailObvImg, obv, embeddedDataUrl(rep, "obv"));
-  setImg(els.detailRevImg, rev, embeddedDataUrl(rep, "rev"));
+  setImg(els.detailObvImg, imageUrlCandidates(rep, "obv"), embeddedDataUrl(rep, "obv"));
+  setImg(els.detailRevImg, imageUrlCandidates(rep, "rev"), embeddedDataUrl(rep, "rev"));
 
   els.detailObvBtn.onclick = () => {
     if (els.detailObvImg.src) openImage(`${s.name} • ${yearText} • Obverse`, els.detailObvImg.src);

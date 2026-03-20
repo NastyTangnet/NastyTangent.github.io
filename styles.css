@@ -22,6 +22,9 @@ body {
   color: var(--text);
 }
 
+/* Ensure the HTML `hidden` attribute works even when author styles set `display`. */
+[hidden] { display: none !important; }
+
 .loading {
   position: fixed;
   inset: 0;
