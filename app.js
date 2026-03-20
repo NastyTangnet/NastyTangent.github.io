@@ -179,6 +179,12 @@ function year4(coinYear) {
   return digits.slice(0, 4);
 }
 
+function yearSortKey(v) {
+  const digits = safeText(v).replace(/\D/g, "");
+  const n = digits ? Number.parseInt(digits.slice(0, 4), 10) : NaN;
+  return Number.isFinite(n) ? n : 99999;
+}
+
 function normalizeMint(m) {
   const t = safeText(m).trim();
   if (!t) return "P";
@@ -381,7 +387,8 @@ function buildSections(groupsArr) {
       });
     }
 
-    seriesOut.sort((a, b) => a.name.localeCompare(b.name));
+    // Oldest -> newest: sort series by their earliest year, then name.
+    seriesOut.sort((a, b) => yearSortKey(a.minYear) - yearSortKey(b.minYear) || a.name.localeCompare(b.name));
     out.push({
       title: sec.title,
       qty: sec.qty,
@@ -673,7 +680,8 @@ function renderLayerList(s) {
   els.layerList.innerHTML = "";
   const frag = document.createDocumentFragment();
   const groupsSorted = [...s.groups].sort(
-    (a, b) => safeText(b.year).localeCompare(safeText(a.year)) || safeText(a.mint).localeCompare(safeText(b.mint))
+    // Oldest -> newest: year asc, then mint asc.
+    (a, b) => safeText(a.year).localeCompare(safeText(b.year)) || safeText(a.mint).localeCompare(safeText(b.mint))
   );
 
   for (const g of groupsSorted) {
