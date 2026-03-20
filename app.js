@@ -7,16 +7,21 @@
 
 const BASE = new URL("./", window.location.href);
 
+// Important for GitHub Pages: avoid aggressive cache-busting on *images*.
+// Using `?v=${Date.now()}` on hundreds of requests can look like a scrape and may trigger throttling.
+// We only cache-bust `coins.json` when the user explicitly taps Reload.
+let coinsCacheBust = "";
+
 const STORAGE_KEY = "jpcc_coins_v2";
 
 let coins = [];
 let groups = []; // grouped by name+year+mint
-let series = []; // grouped by coin.name
+let sections = []; // grouped by coin.type (each contains series rows)
 
 const els = {
   subtitle: document.getElementById("subtitle"),
   meta: document.getElementById("meta"),
-  seriesGrid: document.getElementById("seriesGrid"),
+  typeGrid: document.getElementById("typeGrid"),
   loadingOverlay: document.getElementById("loadingOverlay"),
   loadingText: document.getElementById("loadingText"),
   loadingPct: document.getElementById("loadingPct"),
@@ -27,7 +32,6 @@ const els = {
   exportBtn: document.getElementById("exportBtn"),
   clearBtn: document.getElementById("clearBtn"),
 
-  sortSelect: document.getElementById("sortSelect"),
   searchInput: document.getElementById("searchInput"),
 
   imageDialog: document.getElementById("imageDialog"),
@@ -61,6 +65,15 @@ let layerState = {
 function safeText(v) {
   if (v === null || v === undefined) return "";
   return String(v);
+}
+
+function escapeHtml(s) {
+  return safeText(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function year4(coinYear) {
@@ -113,12 +126,9 @@ function embeddedDataUrl(coin, side) {
 
 function imageUrlCandidates(coin, side) {
   // We try multiple patterns because your repo may contain either:
-  // - `NastyTangent.github/coin-images/<uuid-lower>/obv.jpg` (current app uploader)
-  // - `NastyTangent.github/coin-images/<uuid-upper>/obv.jpg`
-  // - `NastyTangent.github/coin-images/<UUID>-obv.jpg` (older zip exports)
-  // - `NastyTangent.github/coin-images/images/<UUID>-obv.jpg` (if you kept the "images/" folder)
-  //
-  // Older layouts may also have `coin-images/...` at repo root, so we try both.
+  // - `coin-images/<uuid-lower>/obv.jpg` (preferred: images live next to the site)
+  // - `NastyTangent.github/coin-images/<uuid-lower>/obv.jpg` (older nested folder layout)
+  // - Flat zip exports like `coin-images/<UUID>-obv.jpg`
   const rawID = safeText(coin.id);
   const lower = rawID.toLowerCase();
   const upper = rawID.toUpperCase();
@@ -128,21 +138,21 @@ function imageUrlCandidates(coin, side) {
   const out = [];
 
   // Folder-based (preferred)
-  if (lower) out.push(new URL(`NastyTangent.github/coin-images/${lower}/${sideFile}`, BASE).toString());
-  if (upper && upper !== lower) out.push(new URL(`NastyTangent.github/coin-images/${upper}/${sideFile}`, BASE).toString());
   if (lower) out.push(new URL(`coin-images/${lower}/${sideFile}`, BASE).toString());
   if (upper && upper !== lower) out.push(new URL(`coin-images/${upper}/${sideFile}`, BASE).toString());
+  if (lower) out.push(new URL(`NastyTangent.github/coin-images/${lower}/${sideFile}`, BASE).toString());
+  if (upper && upper !== lower) out.push(new URL(`NastyTangent.github/coin-images/${upper}/${sideFile}`, BASE).toString());
 
   // Flat files (zip-style)
-  if (upper) out.push(new URL(`NastyTangent.github/coin-images/${upper}-${sideTag}.jpg`, BASE).toString());
-  if (lower && lower !== upper) out.push(new URL(`NastyTangent.github/coin-images/${lower}-${sideTag}.jpg`, BASE).toString());
   if (upper) out.push(new URL(`coin-images/${upper}-${sideTag}.jpg`, BASE).toString());
   if (lower && lower !== upper) out.push(new URL(`coin-images/${lower}-${sideTag}.jpg`, BASE).toString());
+  if (upper) out.push(new URL(`NastyTangent.github/coin-images/${upper}-${sideTag}.jpg`, BASE).toString());
+  if (lower && lower !== upper) out.push(new URL(`NastyTangent.github/coin-images/${lower}-${sideTag}.jpg`, BASE).toString());
 
   // If you kept an `images/` folder inside coin-images or at site root
-  if (upper) out.push(new URL(`NastyTangent.github/coin-images/images/${upper}-${sideTag}.jpg`, BASE).toString());
   if (upper) out.push(new URL(`coin-images/images/${upper}-${sideTag}.jpg`, BASE).toString());
   if (upper) out.push(new URL(`images/${upper}-${sideTag}.jpg`, BASE).toString());
+  if (upper) out.push(new URL(`NastyTangent.github/coin-images/images/${upper}-${sideTag}.jpg`, BASE).toString());
 
   // Repo-root fallback (if you moved coin-images outside the site folder)
   if (lower) out.push(new URL(`../coin-images/${lower}/${sideFile}`, BASE).toString());
@@ -184,29 +194,81 @@ function buildGroups(coinsArr) {
   return out;
 }
 
-function buildSeries(groupsArr) {
-  const map = new Map();
+function typeSectionTitle(typeRaw) {
+  const t = safeText(typeRaw).trim();
+  if (!t) return "Other";
+  const low = t.toLowerCase();
+  if (low === "dollar") return "Dollars";
+  if (low === "half dollar") return "Half Dollars";
+  if (low === "quarter") return "Quarters";
+  if (low === "dime") return "Dimes";
+  if (low === "nickel") return "Nickels";
+  if (low === "cent" || low === "penny") return "Cents";
+  if (t.endsWith("s")) return t;
+  return `${t}s`;
+}
+
+function rangeText(minYear, maxYear) {
+  const a = safeText(minYear).trim();
+  const b = safeText(maxYear).trim();
+  if (!a && !b) return "";
+  if (a && !b) return `(${a})`;
+  if (!a && b) return `(${b})`;
+  if (a === b) return `(${a})`;
+  return `(${a}-${b})`;
+}
+
+function buildSections(groupsArr) {
+  const byType = new Map(); // title -> { title, qty, repCoin, seriesMap }
+
   for (const g of groupsArr) {
-    const name = safeText(g.name).trim() || "(Untitled)";
-    const existing = map.get(name);
-    if (existing) existing.groups.push(g);
-    else map.set(name, { name, groups: [g] });
+    const title = typeSectionTitle(g.type);
+    const existing = byType.get(title);
+    const sec =
+      existing ||
+      (() => {
+        const created = { title, qty: 0, repCoin: g.items && g.items[0] ? g.items[0] : null, seriesMap: new Map() };
+        byType.set(title, created);
+        return created;
+      })();
+
+    sec.qty += g.qty;
+    if (!sec.repCoin && g.items && g.items[0]) sec.repCoin = g.items[0];
+
+    const seriesName = safeText(g.name).trim() || "(Untitled)";
+    const sExisting = sec.seriesMap.get(seriesName);
+    if (sExisting) sExisting.groups.push(g);
+    else sec.seriesMap.set(seriesName, { name: seriesName, groups: [g] });
   }
 
   const out = [];
-  for (const s of map.values()) {
-    const qty = s.groups.reduce((sum, g) => sum + g.qty, 0);
-    const years = s.groups.map((g) => safeText(g.year)).filter(Boolean);
-    const minYear = years.length ? years.reduce((a, b) => (a.localeCompare(b) <= 0 ? a : b)) : "";
-    const maxYear = years.length ? years.reduce((a, b) => (a.localeCompare(b) >= 0 ? a : b)) : "";
+  for (const sec of byType.values()) {
+    const seriesOut = [];
+    for (const s of sec.seriesMap.values()) {
+      const qty = s.groups.reduce((sum, g) => sum + g.qty, 0);
+      const years = s.groups.map((g) => safeText(g.year)).filter(Boolean);
+      const minYear = years.length ? years.reduce((a, b) => (a.localeCompare(b) <= 0 ? a : b)) : "";
+      const maxYear = years.length ? years.reduce((a, b) => (a.localeCompare(b) >= 0 ? a : b)) : "";
+      seriesOut.push({
+        name: s.name,
+        qty,
+        minYear,
+        maxYear,
+        groups: s.groups,
+        sectionTitle: sec.title,
+      });
+    }
+
+    seriesOut.sort((a, b) => a.name.localeCompare(b.name));
     out.push({
-      name: s.name,
-      qty,
-      minYear,
-      maxYear,
-      groups: s.groups,
+      title: sec.title,
+      qty: sec.qty,
+      repCoin: sec.repCoin,
+      series: seriesOut,
     });
   }
+
+  out.sort((a, b) => a.title.localeCompare(b.title));
   return out;
 }
 
@@ -233,46 +295,31 @@ function setLoadingProgress(pct, text) {
 function applyFilters() {
   const q = safeText(els.searchInput.value).trim().toLowerCase();
 
-  let filtered = series;
+  let filteredSections = sections;
   if (q) {
-    filtered = filtered.filter((s) => {
-      const hay = `${s.name} ${safeText(s.minYear)} ${safeText(s.maxYear)} ${s.groups
-        .map((g) => `${g.year} ${g.mint} ${g.type} ${safeText(g.notes)}`)
-        .join(" ")}`.toLowerCase();
-      return hay.includes(q);
-    });
+    filteredSections = sections
+      .map((sec) => {
+        const titleHit = safeText(sec.title).toLowerCase().includes(q);
+        if (titleHit) return sec;
+        const matchingSeries = sec.series.filter((s) => {
+          const hay = `${s.name} ${safeText(s.minYear)} ${safeText(s.maxYear)} ${s.groups
+            .map((g) => `${g.year} ${g.mint} ${g.type} ${safeText(g.notes)}`)
+            .join(" ")}`.toLowerCase();
+          return hay.includes(q);
+        });
+        if (!matchingSeries.length) return null;
+        return { ...sec, series: matchingSeries };
+      })
+      .filter(Boolean);
   }
 
-  filtered = sortSeries(filtered);
-  renderSeries(filtered);
+  renderTypeGrid(filteredSections);
 
   const totalCoins = coins.length;
-  const shownCoins = filtered.reduce((sum, s) => sum + s.qty, 0);
-  els.meta.textContent = `Showing ${filtered.length} type box(es), ${shownCoins} coin(s)`;
-  els.subtitle.textContent = `${totalCoins} coins • ${series.length} types`;
-}
-
-function sortSeries(arr) {
-  const mode = els.sortSelect.value;
-  const out = [...arr];
-  out.sort((a, b) => {
-    switch (mode) {
-      case "nameDesc":
-        return b.name.localeCompare(a.name);
-      case "qtyAsc":
-        return a.qty - b.qty || a.name.localeCompare(b.name);
-      case "qtyDesc":
-        return b.qty - a.qty || a.name.localeCompare(b.name);
-      case "yearOldest":
-        return safeText(a.minYear).localeCompare(safeText(b.minYear)) || b.qty - a.qty || a.name.localeCompare(b.name);
-      case "yearNewest":
-        return safeText(b.maxYear).localeCompare(safeText(a.maxYear)) || b.qty - a.qty || a.name.localeCompare(b.name);
-      case "nameAsc":
-      default:
-        return a.name.localeCompare(b.name);
-    }
-  });
-  return out;
+  const shownCoins = filteredSections.reduce((sum, sec) => sum + sec.qty, 0);
+  const shownSeries = filteredSections.reduce((sum, sec) => sum + sec.series.length, 0);
+  els.meta.textContent = `Showing ${filteredSections.length} section(s), ${shownSeries} series, ${shownCoins} coin(s)`;
+  els.subtitle.textContent = `${totalCoins} coins • ${sections.length} sections`;
 }
 
 function makeThumb(coin) {
@@ -295,7 +342,7 @@ function makeThumb(coin) {
       // Try next candidate(s), then embedded.
       const next = candidates.find((u) => u && img.src.indexOf(u) === -1);
       if (next) {
-        img.src = `${next}?v=${Date.now()}`;
+        img.src = next;
         return;
       }
       if (embedded && img.src !== embedded) {
@@ -327,7 +374,7 @@ function observeLazyImage(img) {
           if (!e.isIntersecting) continue;
           const el = e.target;
           const src = el.dataset.src;
-          if (src && !el.src) el.src = `${src}?v=${Date.now()}`;
+          if (src && !el.src) el.src = src;
           window.__lazyIO.unobserve(el);
         }
       },
@@ -466,13 +513,13 @@ function renderLayerDetail(s, g) {
     imgEl.style.display = "block";
 
     const first = candidates && candidates.length ? candidates[0] : embedded;
-    if (first) imgEl.src = `${first}?v=${Date.now()}`;
+    if (first) imgEl.src = first;
 
     imgEl.onerror = () => {
       const srcNow = imgEl.src || "";
       const next = candidates ? candidates.find((u) => u && srcNow.indexOf(u) === -1) : null;
       if (next) {
-        imgEl.src = `${next}?v=${Date.now()}`;
+        imgEl.src = next;
         return;
       }
       if (embedded && srcNow !== embedded) {
@@ -494,52 +541,89 @@ function renderLayerDetail(s, g) {
   };
 }
 
-function renderSeries(arr) {
-  els.seriesGrid.innerHTML = "";
+function renderTypeGrid(arr) {
+  if (!els.typeGrid) return;
+  els.typeGrid.innerHTML = "";
   const frag = document.createDocumentFragment();
 
-  for (const s of arr) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "seriesCard";
+  for (const sec of arr) {
+    const card = document.createElement("section");
+    card.className = "typeCard";
 
-    // Use the first group’s first coin as a "cover".
-    const repCoin = s.groups[0] && s.groups[0].items[0] ? s.groups[0].items[0] : null;
-    if (repCoin) btn.appendChild(makeThumb(repCoin));
+    const head = document.createElement("div");
+    head.className = "typeCard__head";
 
-    const main = document.createElement("div");
-    main.className = "series__main";
+    const title = document.createElement("h2");
+    title.className = "typeCard__title";
+    title.textContent = sec.title || "Other";
 
-    const title = document.createElement("div");
-    title.className = "series__title";
-    title.textContent = s.name || "(Untitled)";
+    const icon = document.createElement("div");
+    icon.className = "typeCard__icon";
 
-    const sub = document.createElement("div");
-    sub.className = "series__sub";
+    const rep = sec.repCoin;
+    const candidates = rep ? imageUrlCandidates(rep, "obv") : [];
+    const embedded = rep ? embeddedDataUrl(rep, "obv") : null;
+    const first = candidates[0] || embedded;
 
-    const years = document.createElement("span");
-    years.className = "pill";
-    years.textContent = s.minYear && s.maxYear ? `${s.minYear}–${s.maxYear}` : "—";
+    if (!first) {
+      icon.classList.add("is-missing");
+    } else {
+      const img = document.createElement("img");
+      img.alt = `${sec.title} cover`;
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.referrerPolicy = "no-referrer";
+      img.src = first;
+      img.addEventListener("error", () => {
+        // Try next candidate(s), then embedded.
+        const next = candidates.find((u) => u && img.src.indexOf(u) === -1);
+        if (next) {
+          img.src = next;
+          return;
+        }
+        if (embedded && img.src !== embedded) {
+          img.src = embedded;
+          return;
+        }
+        img.removeAttribute("src");
+        img.style.display = "none";
+        icon.classList.add("is-missing");
+      });
+      icon.appendChild(img);
+    }
 
-    const q = document.createElement("span");
-    q.className = "pill qty";
-    q.textContent = `x${s.qty}`;
+    head.appendChild(title);
+    head.appendChild(icon);
+    card.appendChild(head);
 
-    sub.appendChild(years);
-    sub.appendChild(q);
+    const rule = document.createElement("div");
+    rule.className = "typeCard__rule";
+    card.appendChild(rule);
 
-    main.appendChild(title);
-    main.appendChild(sub);
-    btn.appendChild(main);
+    const list = document.createElement("ul");
+    list.className = "typeCard__list";
 
-    btn.addEventListener("click", () => {
-      openLayerForSeries(s);
-    });
+    for (const s of sec.series) {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "typeItem";
 
-    frag.appendChild(btn);
+      const range = rangeText(s.minYear, s.maxYear);
+      btn.innerHTML = `${escapeHtml(s.name)} <span class="typeItem__range">${escapeHtml(range)}</span> <span class="typeItem__qty">x${Number(
+        s.qty || 0
+      )}</span>`;
+
+      btn.addEventListener("click", () => openLayerForSeries(s));
+      li.appendChild(btn);
+      list.appendChild(li);
+    }
+
+    card.appendChild(list);
+    frag.appendChild(card);
   }
 
-  els.seriesGrid.appendChild(frag);
+  els.typeGrid.appendChild(frag);
 }
 
 function saveToStorage() {
@@ -562,7 +646,7 @@ function loadFromStorage() {
 }
 
 async function fetchCoinsJSON(onProgress) {
-  const url = new URL(`coins.json?v=${Date.now()}`, BASE);
+  const url = new URL(`coins.json${coinsCacheBust}`, BASE);
   const resp = await fetch(url, { cache: "no-store" });
   if (!resp.ok) throw new Error(`Could not fetch coins.json (${resp.status}).`);
 
@@ -621,7 +705,7 @@ async function load() {
 
   coins = loaded || [];
   groups = buildGroups(coins);
-  series = buildSeries(groups);
+  sections = buildSections(groups);
   applyFilters();
   setLoadingProgress(1, "Done");
   // Let the bar reach 100% before fading out.
@@ -635,7 +719,13 @@ async function load() {
 
 // Events
 els.reloadBtn.addEventListener("click", async () => {
-  await load();
+  // Cache-bust only the JSON fetch, not every image.
+  coinsCacheBust = `?v=${Date.now()}`;
+  try {
+    await load();
+  } finally {
+    coinsCacheBust = "";
+  }
 });
 
 els.fileInput.addEventListener("change", async (ev) => {
@@ -646,7 +736,7 @@ els.fileInput.addEventListener("change", async (ev) => {
     coins = parseCoins(JSON.parse(text));
     saveToStorage();
     groups = buildGroups(coins);
-    series = buildSeries(groups);
+    sections = buildSections(groups);
     applyFilters();
   } catch (e) {
     alert(`Import failed: ${e.message || e}`);
@@ -670,11 +760,10 @@ els.clearBtn.addEventListener("click", () => {
   localStorage.removeItem(STORAGE_KEY);
   coins = [];
   groups = [];
-  series = [];
+  sections = [];
   applyFilters();
 });
 
-els.sortSelect.addEventListener("change", applyFilters);
 els.searchInput.addEventListener("input", () => {
   // Small debounce for typing.
   clearTimeout(window.__qTimer);

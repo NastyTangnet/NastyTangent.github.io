@@ -43,23 +43,12 @@
             <label class="label" for="searchInput">Search</label>
             <input id="searchInput" class="input" placeholder="Search coin type, year, mint, notes…" />
           </div>
-          <div class="field">
-            <label class="label" for="sortSelect">Sort</label>
-            <select id="sortSelect" class="select">
-              <option value="nameAsc">A–Z</option>
-              <option value="nameDesc">Z–A</option>
-              <option value="qtyDesc">Most Coins</option>
-              <option value="qtyAsc">Fewest Coins</option>
-              <option value="yearOldest">Oldest</option>
-              <option value="yearNewest">Newest</option>
-            </select>
-          </div>
           <div class="meta" id="meta">—</div>
         </div>
       </section>
 
       <section class="results" aria-label="Coins">
-        <div id="seriesGrid" class="seriesGrid" aria-live="polite"></div>
+        <div id="typeGrid" class="typeGrid" aria-live="polite"></div>
       </section>
 
       <section class="silver" aria-label="Silver (Coming Soon)">
