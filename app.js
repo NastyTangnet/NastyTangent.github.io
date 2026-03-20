@@ -12,6 +12,11 @@ const BASE = new URL("./", window.location.href);
 // We only cache-bust `coins.json` when the user explicitly taps Reload.
 let coinsCacheBust = "";
 
+// Optional: a single-file BU cover sprite for your denomination icons.
+// If present, it greatly reduces requests (1 SVG file instead of many images).
+let buSpriteChecked = false;
+let buSpriteOk = false;
+
 const STORAGE_KEY = "jpcc_coins_v2";
 
 let coins = [];
@@ -105,6 +110,50 @@ function setRouteToType(title) {
   window.location.hash = `#type=${encodeURIComponent(t)}`;
 }
 
+function sectionKey(title) {
+  return safeText(title).toLowerCase().replaceAll(" ", "_");
+}
+
+function buSpriteUrl() {
+  return new URL("assets/covers/bu-covers.svg", BASE).toString();
+}
+
+function ensureBuSpriteChecked() {
+  if (buSpriteChecked) return;
+  buSpriteChecked = true;
+
+  // One lightweight probe; if it fails we just fall back to photos.
+  fetch(buSpriteUrl(), { method: "HEAD", cache: "force-cache" })
+    .then((r) => {
+      buSpriteOk = !!r && r.ok;
+    })
+    .catch(() => {
+      buSpriteOk = false;
+    })
+    .finally(() => {
+      applyFilters();
+    });
+}
+
+function makeBuSpriteIcon(title) {
+  if (!buSpriteOk) return null;
+  const k = sectionKey(title);
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 256 256");
+  svg.setAttribute("aria-hidden", "true");
+  svg.style.width = "100%";
+  svg.style.height = "100%";
+  svg.style.display = "block";
+
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  // External sprite reference. Supported in modern browsers on GitHub Pages.
+  use.setAttribute("href", `${buSpriteUrl()}#${k}`);
+
+  svg.appendChild(use);
+  return svg;
+}
+
 function year4(coinYear) {
   const digits = safeText(coinYear).replace(/\D/g, "");
   return digits.slice(0, 4);
@@ -171,17 +220,23 @@ function imageUrlCandidates(coin, side) {
   if (upper && upper !== lower) out.push(new URL(`coin-images/${upper}/${sideFile}`, BASE).toString());
   if (lower) out.push(new URL(`NastyTangent.github/coin-images/${lower}/${sideFile}`, BASE).toString());
   if (upper && upper !== lower) out.push(new URL(`NastyTangent.github/coin-images/${upper}/${sideFile}`, BASE).toString());
+  // If your images live at repo-root under `NastyTangent.github/coin-images` (site served from `Website/`)
+  if (lower) out.push(new URL(`../NastyTangent.github/coin-images/${lower}/${sideFile}`, BASE).toString());
+  if (upper && upper !== lower) out.push(new URL(`../NastyTangent.github/coin-images/${upper}/${sideFile}`, BASE).toString());
 
   // Flat files (zip-style)
   if (upper) out.push(new URL(`coin-images/${upper}-${sideTag}.jpg`, BASE).toString());
   if (lower && lower !== upper) out.push(new URL(`coin-images/${lower}-${sideTag}.jpg`, BASE).toString());
   if (upper) out.push(new URL(`NastyTangent.github/coin-images/${upper}-${sideTag}.jpg`, BASE).toString());
   if (lower && lower !== upper) out.push(new URL(`NastyTangent.github/coin-images/${lower}-${sideTag}.jpg`, BASE).toString());
+  if (upper) out.push(new URL(`../NastyTangent.github/coin-images/${upper}-${sideTag}.jpg`, BASE).toString());
+  if (lower && lower !== upper) out.push(new URL(`../NastyTangent.github/coin-images/${lower}-${sideTag}.jpg`, BASE).toString());
 
   // If you kept an `images/` folder inside coin-images or at site root
   if (upper) out.push(new URL(`coin-images/images/${upper}-${sideTag}.jpg`, BASE).toString());
   if (upper) out.push(new URL(`images/${upper}-${sideTag}.jpg`, BASE).toString());
   if (upper) out.push(new URL(`NastyTangent.github/coin-images/images/${upper}-${sideTag}.jpg`, BASE).toString());
+  if (upper) out.push(new URL(`../NastyTangent.github/coin-images/images/${upper}-${sideTag}.jpg`, BASE).toString());
 
   // Repo-root fallback (if you moved coin-images outside the site folder)
   if (lower) out.push(new URL(`../coin-images/${lower}/${sideFile}`, BASE).toString());
@@ -249,14 +304,15 @@ function sectionOrderIndex(title) {
 }
 
 function coverCandidatesForSectionTitle(title) {
-  const key = safeText(title).toLowerCase().replaceAll(" ", "_");
+  const key = sectionKey(title);
   // We try a few extensions so you can drop in whatever is easiest.
   return [
-    new URL(`assets/covers/${key}.svg`, BASE).toString(),
     new URL(`assets/covers/${key}.png`, BASE).toString(),
     new URL(`assets/covers/${key}.jpg`, BASE).toString(),
     new URL(`assets/covers/${key}.jpeg`, BASE).toString(),
     new URL(`assets/covers/${key}.webp`, BASE).toString(),
+    // SVG is a last-resort fallback (so your real BU photos win if you add them).
+    new URL(`assets/covers/${key}.svg`, BASE).toString(),
   ];
 }
 
@@ -345,6 +401,7 @@ function setLoadingProgress(pct, text) {
 }
 
 function applyFilters() {
+  ensureBuSpriteChecked();
   const q = safeText(els.searchInput.value).trim().toLowerCase();
 
   let filteredSections = sections;
@@ -438,11 +495,19 @@ function renderTypeView(sec, qLower) {
   if (els.typeViewSub) els.typeViewSub.textContent = `${yr} • ${qty} coin(s)`;
 
   if (els.typeViewIcon) {
-    const coverCandidates = coverCandidatesForSectionTitle(title);
-    const rep = sec && sec.repCoin ? sec.repCoin : null;
-    const photoCandidates = rep ? imageUrlCandidates(rep, "obv") : [];
-    const embedded = rep ? embeddedDataUrl(rep, "obv") : null;
-    setIconFromCandidates(els.typeViewIcon, [...coverCandidates, ...photoCandidates], embedded);
+    // Prefer one-file BU sprite if present; else cover images; else your coin photos.
+    const buIcon = makeBuSpriteIcon(title);
+    if (buIcon) {
+      els.typeViewIcon.innerHTML = "";
+      els.typeViewIcon.classList.remove("is-missing");
+      els.typeViewIcon.appendChild(buIcon);
+    } else {
+      const coverCandidates = coverCandidatesForSectionTitle(title);
+      const rep = sec && sec.repCoin ? sec.repCoin : null;
+      const photoCandidates = rep ? imageUrlCandidates(rep, "obv") : [];
+      const embedded = rep ? embeddedDataUrl(rep, "obv") : null;
+      setIconFromCandidates(els.typeViewIcon, [...coverCandidates, ...photoCandidates], embedded);
+    }
   }
 
   if (!els.typeViewList) return;
@@ -721,40 +786,45 @@ function renderTypeGrid(arr) {
     const icon = document.createElement("div");
     icon.className = "typeCard__icon";
 
-    const rep = sec.repCoin;
-    const coverCandidates = coverCandidatesForSectionTitle(sec.title);
-    const photoCandidates = rep ? imageUrlCandidates(rep, "obv") : [];
-    const embedded = rep ? embeddedDataUrl(rep, "obv") : null;
-
-    const candidates = [...coverCandidates, ...photoCandidates].filter(Boolean);
-    const first = candidates[0] || embedded;
-
-    if (!first) {
-      icon.classList.add("is-missing");
+    const buIcon = makeBuSpriteIcon(sec.title);
+    if (buIcon) {
+      icon.appendChild(buIcon);
     } else {
-      const img = document.createElement("img");
-      img.alt = `${sec.title} cover`;
-      img.loading = "lazy";
-      img.decoding = "async";
-      img.referrerPolicy = "no-referrer";
-      img.src = first;
+      const rep = sec.repCoin;
+      const coverCandidates = coverCandidatesForSectionTitle(sec.title);
+      const photoCandidates = rep ? imageUrlCandidates(rep, "obv") : [];
+      const embedded = rep ? embeddedDataUrl(rep, "obv") : null;
 
-      img.addEventListener("error", () => {
-        const next = candidates.find((u) => u && img.src.indexOf(u) === -1);
-        if (next) {
-          img.src = next;
-          return;
-        }
-        if (embedded && img.src !== embedded) {
-          img.src = embedded;
-          return;
-        }
-        img.removeAttribute("src");
-        img.style.display = "none";
+      const candidates = [...coverCandidates, ...photoCandidates].filter(Boolean);
+      const first = candidates[0] || embedded;
+
+      if (!first) {
         icon.classList.add("is-missing");
-      });
+      } else {
+        const img = document.createElement("img");
+        img.alt = `${sec.title} cover`;
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.referrerPolicy = "no-referrer";
+        img.src = first;
 
-      icon.appendChild(img);
+        img.addEventListener("error", () => {
+          const next = candidates.find((u) => u && img.src.indexOf(u) === -1);
+          if (next) {
+            img.src = next;
+            return;
+          }
+          if (embedded && img.src !== embedded) {
+            img.src = embedded;
+            return;
+          }
+          img.removeAttribute("src");
+          img.style.display = "none";
+          icon.classList.add("is-missing");
+        });
+
+        icon.appendChild(img);
+      }
     }
 
     head.appendChild(title);

@@ -447,16 +447,16 @@ summary.coin__summary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid rgba(238, 242, 248, 0.14);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(17, 19, 24, 0.16);
+  background: rgba(255, 255, 255, 0.70);
   padding: 3px 8px;
   border-radius: 999px;
   font-weight: 700;
 }
 .qty {
-  border-color: rgba(122, 227, 194, 0.34);
-  background: rgba(122, 227, 194, 0.10);
-  color: rgba(122, 227, 194, 0.92);
+  border-color: rgba(46, 125, 107, 0.30);
+  background: rgba(46, 125, 107, 0.10);
+  color: rgba(46, 125, 107, 0.92);
 }
 
 .photos {
@@ -510,34 +510,34 @@ summary.coin__summary {
 
 .imgDialog {
   width: min(900px, calc(100% - 22px));
-  border: 1px solid rgba(238, 242, 248, 0.16);
-  background: rgba(11, 13, 16, 0.92);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
   border-radius: 18px;
   color: var(--text);
   box-shadow: var(--shadow);
 }
-.imgDialog::backdrop { background: rgba(0, 0, 0, 0.75); }
-.imgDialog__header { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px; border-bottom: 1px solid rgba(238, 242, 248, 0.10); }
+.imgDialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+.imgDialog__header { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px; border-bottom: 1px solid rgba(17, 19, 24, 0.10); }
 .imgDialog__title { font-weight: 900; letter-spacing: 0.2px; }
 .imgDialog__body { padding: 12px; }
 .imgDialog__img { width: 100%; height: auto; border-radius: 14px; background: rgba(255, 255, 255, 0.04); }
 
 .layerDialog {
   width: min(980px, calc(100% - 22px));
-  border: 1px solid rgba(238, 242, 248, 0.16);
-  background: rgba(11, 13, 16, 0.92);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
   border-radius: 18px;
   color: var(--text);
   box-shadow: var(--shadow);
 }
-.layerDialog::backdrop { background: rgba(0, 0, 0, 0.75); }
+.layerDialog::backdrop { background: rgba(0, 0, 0, 0.55); }
 .layerDialog__header {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 10px;
   padding: 12px 12px;
-  border-bottom: 1px solid rgba(238, 242, 248, 0.10);
+  border-bottom: 1px solid rgba(17, 19, 24, 0.10);
 }
 .layerDialog__titles { min-width: 0; }
 .layerDialog__title { font-weight: 950; letter-spacing: 0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -551,9 +551,9 @@ summary.coin__summary {
 }
 
 .groupCard {
-  border: 1px solid rgba(238, 242, 248, 0.12);
+  border: 1px solid rgba(17, 19, 24, 0.14);
   border-radius: 16px;
-  background: rgba(18, 23, 32, 0.60);
+  background: rgba(255, 255, 255, 0.92);
   overflow: clip;
 }
 .groupCard__head {
@@ -575,8 +575,8 @@ summary.coin__summary {
 }
 
 .photoTile {
-  border: 1px solid rgba(238, 242, 248, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(17, 19, 24, 0.14);
+  background: rgba(255, 255, 255, 0.92);
   border-radius: 16px;
   overflow: hidden;
   padding: 0;
@@ -605,8 +605,8 @@ summary.coin__summary {
   font-weight: 950;
   padding: 4px 8px;
   border-radius: 999px;
-  background: rgba(11, 13, 16, 0.65);
-  border: 1px solid rgba(238, 242, 248, 0.10);
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(17, 19, 24, 0.10);
 }
 
 .kv--wide { grid-template-columns: 84px 1fr; }

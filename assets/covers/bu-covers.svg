@@ -1,0 +1,48 @@
+<!--
+  Single-file BU cover sprite.
+
+  This file is intentionally a placeholder template.
+  To use your BU images, replace the `href` values with embedded base64 data URIs.
+
+  Symbols:
+  - #dollar
+  - #penny
+  - #commemoratives
+  - #nickel
+  - #dime
+  - #quarter
+  - #half_dollar
+
+  If this file exists and is reachable, the site will prefer it for section icons.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" viewBox="0 0 256 256">
+  <symbol id="dollar" viewBox="0 0 256 256">
+    <rect width="256" height="256" fill="#f3f4f6" />
+    <text x="128" y="140" text-anchor="middle" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="900" fill="#2e7d6b">BU $</text>
+  </symbol>
+  <symbol id="penny" viewBox="0 0 256 256">
+    <rect width="256" height="256" fill="#f3f4f6" />
+    <text x="128" y="140" text-anchor="middle" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="900" fill="#2e7d6b">BU 1¢</text>
+  </symbol>
+  <symbol id="commemoratives" viewBox="0 0 256 256">
+    <rect width="256" height="256" fill="#f3f4f6" />
+    <text x="128" y="140" text-anchor="middle" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="900" fill="#2e7d6b">BU COMM</text>
+  </symbol>
+  <symbol id="nickel" viewBox="0 0 256 256">
+    <rect width="256" height="256" fill="#f3f4f6" />
+    <text x="128" y="140" text-anchor="middle" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="900" fill="#2e7d6b">BU 5¢</text>
+  </symbol>
+  <symbol id="dime" viewBox="0 0 256 256">
+    <rect width="256" height="256" fill="#f3f4f6" />
+    <text x="128" y="140" text-anchor="middle" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="900" fill="#2e7d6b">BU 10¢</text>
+  </symbol>
+  <symbol id="quarter" viewBox="0 0 256 256">
+    <rect width="256" height="256" fill="#f3f4f6" />
+    <text x="128" y="140" text-anchor="middle" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="900" fill="#2e7d6b">BU 25¢</text>
+  </symbol>
+  <symbol id="half_dollar" viewBox="0 0 256 256">
+    <rect width="256" height="256" fill="#f3f4f6" />
+    <text x="128" y="140" text-anchor="middle" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="900" fill="#2e7d6b">BU 50¢</text>
+  </symbol>
+</svg>
+
