@@ -7,197 +7,82 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="hero">
-      <div class="hero__bg"></div>
-      <div class="hero__content">
-        <div class="hero__titleRow">
-          <div class="brandMark" aria-hidden="true">CC</div>
-          <div>
-            <div class="hero__title">Coin Collection</div>
-            <div class="hero__subtitle" id="subtitle">No data loaded</div>
-          </div>
+    <header class="topbar">
+      <div class="topbar__left">
+        <div class="mark" aria-hidden="true">CC</div>
+        <div>
+          <div class="title">Coin Collection</div>
+          <div class="subtitle" id="subtitle">Loading…</div>
         </div>
-
-        <div class="hero__actions">
-          <label class="btn btn--primary">
-            Import JSON
-            <input id="fileInput" type="file" accept=".json,application/json" hidden />
-          </label>
-          <button class="btn btn--ghost" id="exportBtn" title="Download a JSON copy of what’s currently loaded">
-            Export
-          </button>
-          <button class="btn btn--ghost btn--danger" id="clearBtn" title="Remove saved data from this browser">
-            Clear
-          </button>
-        </div>
+      </div>
+      <div class="topbar__right">
+        <button class="btn" id="reloadBtn" type="button" title="Reload coins.json">Reload</button>
+        <label class="btn btn--ghost" title="Import a coins.json file into this browser">
+          Import
+          <input id="fileInput" type="file" accept=".json,application/json" hidden />
+        </label>
+        <button class="btn btn--ghost" id="exportBtn" type="button" title="Download what’s currently loaded as JSON">Export</button>
+        <button class="btn btn--danger" id="clearBtn" type="button" title="Remove saved data from this browser">Clear</button>
       </div>
     </header>
 
-    <main class="sheet">
-      <div class="tabs" role="tablist" aria-label="Views">
-        <button class="tab" id="tabVault" role="tab" aria-selected="true" type="button">
-          <span class="tab__icon" aria-hidden="true">⟡</span>
-          <span class="tab__text">Silver Vault</span>
-        </button>
-        <button class="tab" id="tabNum" role="tab" aria-selected="false" type="button">
-          <span class="tab__icon" aria-hidden="true">◎</span>
-          <span class="tab__text">Numismatic</span>
-        </button>
-        <button class="tab" id="tabTable" role="tab" aria-selected="false" type="button">
-          <span class="tab__icon" aria-hidden="true">▦</span>
-          <span class="tab__text">Table</span>
-        </button>
-      </div>
-
-      <div class="sheet__toolbar">
-        <div class="sheet__left">
-          <input id="searchInput" class="input" placeholder="Search name, year, mint, notes…" />
-
-          <div class="toolGroup">
-            <div class="toolLabel">Type</div>
-            <div id="typeChips" class="chips" aria-label="Type filter chips"></div>
-            <select id="typeFilter" class="select" title="Filter by type" hidden>
-              <option value="">All Types</option>
+    <main class="page">
+      <section class="controls" aria-label="Filters">
+        <div class="controls__row">
+          <div class="field">
+            <label class="label" for="typeSelect">Type</label>
+            <select id="typeSelect" class="select">
+              <option value="">All</option>
             </select>
           </div>
-        </div>
 
-        <div class="sheet__right">
-          <div class="toolGroup toolGroup--compact" id="silverTools">
-            <div class="toolLabel">Silver</div>
-            <div class="spotRow">
-              <div class="spotPill">
-                <span class="spotPill__prefix">$</span>
-                <input id="spotInput" class="spotPill__input" inputmode="decimal" placeholder="25.00" />
-                <span class="spotPill__suffix">/oz</span>
-              </div>
-              <button class="btn btn--ghost btn--tiny" id="spotLiveBtn" title="Fetch the latest spot price">Live</button>
-            </div>
-            <div class="spotMeta" id="spotMeta">—</div>
+          <div class="field">
+            <label class="label" for="nameSelect">Coin</label>
+            <select id="nameSelect" class="select">
+              <option value="">All</option>
+            </select>
           </div>
 
-          <div class="toolGroup toolGroup--compact" id="sortTools">
-            <div class="toolLabel">Sort</div>
-            <select id="sortSelect" class="select" title="Sort">
-              <option value="yearAsc">Year ↑</option>
+          <div class="field">
+            <label class="label" for="yearSelect">Year</label>
+            <select id="yearSelect" class="select">
+              <option value="">All</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="label" for="mintSelect">Mint</label>
+            <select id="mintSelect" class="select">
+              <option value="">All</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="label" for="sortSelect">Sort</label>
+            <select id="sortSelect" class="select">
               <option value="yearDesc">Year ↓</option>
+              <option value="yearAsc">Year ↑</option>
               <option value="nameAsc">Name A–Z</option>
               <option value="nameDesc">Name Z–A</option>
-              <option value="typeAsc">Type</option>
-              <option value="mintAsc">Mint</option>
               <option value="qtyDesc">Qty ↓</option>
-              <option value="meltDesc">Melt ↓</option>
+              <option value="qtyAsc">Qty ↑</option>
             </select>
           </div>
         </div>
-      </div>
 
-      <section id="vaultView" class="view view--active" aria-label="Silver Vault">
-        <div class="vaultTop">
-          <div class="vaultCard">
-            <div class="vaultCard__title">Silver Spot (XAG)</div>
-            <div class="vaultCard__value" id="spotBig">$—</div>
-            <div class="vaultCard__sub" id="spotUpdated">Updated: —</div>
-            <div class="vaultCard__hint">Use overrides to include/exclude coins or set custom ASW.</div>
+        <div class="controls__row controls__row--search">
+          <div class="field field--grow">
+            <label class="label" for="searchInput">Search</label>
+            <input id="searchInput" class="input" placeholder="Search name, year, mint, notes…" />
           </div>
-
-          <div class="chartCard">
-            <div class="chartCard__head">
-              <div class="chartCard__title">Spot History</div>
-              <div class="seg" role="tablist" aria-label="Range">
-                <button class="seg__btn" id="range24" type="button" aria-selected="true">24H</button>
-                <button class="seg__btn" id="range7" type="button" aria-selected="false">7D</button>
-                <button class="seg__btn" id="range30" type="button" aria-selected="false">30D</button>
-              </div>
-            </div>
-            <canvas id="spotChart" width="900" height="240" class="chart" aria-label="Silver spot price chart"></canvas>
-          </div>
-        </div>
-
-        <div class="sheet__stats" id="vaultStats"></div>
-        <div id="vaultSections" class="vaultSections"></div>
-      </section>
-
-      <section id="numismaticView" class="view" aria-label="Numismatic">
-        <div class="sheet__stats" id="numStats"></div>
-        <div id="numGrid" class="numGrid" aria-live="polite"></div>
-      </section>
-
-      <section id="tableView" class="view" aria-label="All Coins Table">
-        <div class="sheet__stats" id="stats"></div>
-
-        <div class="tableWrap">
-          <table class="table" id="table" aria-live="polite">
-            <thead>
-              <tr>
-                <th class="col--bu">Photo</th>
-                <th class="col--name">Name</th>
-                <th class="col--year">Year</th>
-                <th class="col--mint">Mint</th>
-                <th class="col--type">Type</th>
-                <th class="col--qty">Qty</th>
-                <th class="col--melt">Melt</th>
-                <th class="col--notes">Notes</th>
-              </tr>
-            </thead>
-            <tbody id="tbody"></tbody>
-          </table>
+          <div class="meta" id="meta">—</div>
         </div>
       </section>
 
-      <div id="empty" class="empty" hidden>
-        <div class="empty__title">Import your export</div>
-        <div class="empty__text">
-          In the iOS app: Stats → Export → “Export For Website (coins.json + thumbnails)”, then upload the file here.
-        </div>
-      </div>
+      <section class="results" aria-label="Coins">
+        <div id="list" class="list" aria-live="polite"></div>
+      </section>
     </main>
-
-    <dialog id="detailDialog" class="dialog">
-      <div class="dialog__header">
-        <div>
-          <div class="dialog__title" id="detailTitle">Coin</div>
-          <div class="dialog__subtitle" id="detailSubtitle"></div>
-        </div>
-        <button class="btn btn--ghost" id="closeDialogBtn">Close</button>
-      </div>
-
-      <div class="dialog__body">
-        <div class="photoStrip" aria-label="Coin photos">
-          <button class="photoBtn" id="detailObvBtn" type="button" title="Open obverse photo">
-            <div class="photoBtn__imgWrap"><img id="detailObvImg" alt="Obverse" loading="lazy" decoding="async" /></div>
-            <div class="photoBtn__label">Obverse</div>
-          </button>
-          <button class="photoBtn" id="detailRevBtn" type="button" title="Open reverse photo">
-            <div class="photoBtn__imgWrap"><img id="detailRevImg" alt="Reverse" loading="lazy" decoding="async" /></div>
-            <div class="photoBtn__label">Reverse</div>
-          </button>
-        </div>
-
-        <div class="kv">
-          <div class="kv__row">
-            <div class="kv__k">Year</div>
-            <div class="kv__v" id="kvYear">—</div>
-          </div>
-          <div class="kv__row">
-            <div class="kv__k">Type</div>
-            <div class="kv__v" id="kvType">—</div>
-          </div>
-          <div class="kv__row">
-            <div class="kv__k">Mint</div>
-            <div class="kv__v" id="kvMint">—</div>
-          </div>
-          <div class="kv__row">
-            <div class="kv__k">Melt Value (Est.)</div>
-            <div class="kv__v" id="kvMelt">—</div>
-          </div>
-          <div class="kv__row">
-            <div class="kv__k">Notes</div>
-            <div class="kv__v kv__v--notes" id="kvNotes">—</div>
-          </div>
-        </div>
-      </div>
-    </dialog>
 
     <dialog id="imageDialog" class="imgDialog">
       <div class="imgDialog__header">
@@ -212,3 +97,4 @@
     <script src="./app.js"></script>
   </body>
 </html>
+
