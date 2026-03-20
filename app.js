@@ -971,57 +971,67 @@ async function load() {
 }
 
 // Events
-els.reloadBtn.addEventListener("click", async () => {
-  // Cache-bust only the JSON fetch, not every image.
-  coinsCacheBust = `?v=${Date.now()}`;
-  try {
-    await load();
-  } finally {
-    coinsCacheBust = "";
-  }
-});
+if (els.reloadBtn) {
+  els.reloadBtn.addEventListener("click", async () => {
+    // Cache-bust only the JSON fetch, not every image.
+    coinsCacheBust = `?v=${Date.now()}`;
+    try {
+      await load();
+    } finally {
+      coinsCacheBust = "";
+    }
+  });
+}
 
-els.fileInput.addEventListener("change", async (ev) => {
-  const file = ev.target.files && ev.target.files[0];
-  if (!file) return;
-  try {
-    const text = await file.text();
-    coins = parseCoins(JSON.parse(text));
-    saveToStorage();
-    groups = buildGroups(coins);
-    sections = buildSections(groups);
+if (els.fileInput) {
+  els.fileInput.addEventListener("change", async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      coins = parseCoins(JSON.parse(text));
+      saveToStorage();
+      groups = buildGroups(coins);
+      sections = buildSections(groups);
+      applyFilters();
+    } catch (e) {
+      alert(`Import failed: ${e.message || e}`);
+    } finally {
+      els.fileInput.value = "";
+    }
+  });
+}
+
+if (els.exportBtn) {
+  els.exportBtn.addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(coins, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "coins-export.json";
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(a.href);
+    a.remove();
+  });
+}
+
+if (els.clearBtn) {
+  els.clearBtn.addEventListener("click", () => {
+    localStorage.removeItem(STORAGE_KEY);
+    coins = [];
+    groups = [];
+    sections = [];
     applyFilters();
-  } catch (e) {
-    alert(`Import failed: ${e.message || e}`);
-  } finally {
-    els.fileInput.value = "";
-  }
-});
+  });
+}
 
-els.exportBtn.addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(coins, null, 2)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "coins-export.json";
-  document.body.appendChild(a);
-  a.click();
-  URL.revokeObjectURL(a.href);
-  a.remove();
-});
-
-els.clearBtn.addEventListener("click", () => {
-  localStorage.removeItem(STORAGE_KEY);
-  coins = [];
-  groups = [];
-  sections = [];
-  applyFilters();
-});
-
-els.searchInput.addEventListener("input", () => {
-  // Small debounce for typing.
-  clearTimeout(window.__qTimer);
-  window.__qTimer = setTimeout(applyFilters, 90);
-});
+if (els.searchInput) {
+  els.searchInput.addEventListener("input", () => {
+    // Small debounce for typing.
+    clearTimeout(window.__qTimer);
+    window.__qTimer = setTimeout(applyFilters, 90);
+  });
+}
 
 els.closeImageBtn.addEventListener("click", () => {
   els.imgFull.src = "";

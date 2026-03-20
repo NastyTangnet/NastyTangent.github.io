@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Coin Collection</title>
+    <title>Jacob's Coin Collection</title>
     <!-- Help Safari/GitHub Pages avoid serving a stale JS/CSS from cache during rapid iteration. -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <link rel="stylesheet" href="./styles.css?v=20260320e" />
+    <link rel="stylesheet" href="./styles.css?v=20260320f" />
   </head>
   <body>
     <div id="loadingOverlay" class="loading" aria-live="polite" aria-busy="true">
@@ -25,32 +25,20 @@
       <div class="topbar__left">
         <div class="mark" aria-hidden="true">CC</div>
         <div>
-          <div class="title">Coin Collection</div>
+          <div class="title">Jacob's Coin Collection</div>
           <div class="subtitle" id="subtitle">Loading…</div>
         </div>
       </div>
       <div class="topbar__right">
-        <button class="btn" id="reloadBtn" type="button" title="Reload coins.json">Reload</button>
-        <label class="btn btn--ghost" title="Import a coins.json file into this browser">
-          Import
-          <input id="fileInput" type="file" accept=".json,application/json" hidden />
-        </label>
-        <button class="btn btn--ghost" id="exportBtn" type="button" title="Download what’s currently loaded as JSON">Export</button>
-        <button class="btn btn--danger" id="clearBtn" type="button" title="Remove saved data from this browser">Clear</button>
+        <div class="topbarSearch">
+          <label class="srOnly" for="searchInput">Search</label>
+          <input id="searchInput" class="input input--topbar" placeholder="Search coin type, year, mint, notes…" />
+        </div>
+        <div class="meta topbarMeta" id="meta">—</div>
       </div>
     </header>
 
     <main class="page">
-      <section class="controls" aria-label="Browse">
-        <div class="controls__row controls__row--search">
-          <div class="field field--grow">
-            <label class="label" for="searchInput">Search</label>
-            <input id="searchInput" class="input" placeholder="Search coin type, year, mint, notes…" />
-          </div>
-          <div class="meta" id="meta">—</div>
-        </div>
-      </section>
-
       <section id="homeView" class="homeView" aria-label="Home">
         <section class="results" aria-label="Coins">
           <div id="typeGrid" class="typeGrid" aria-live="polite"></div>
@@ -141,6 +129,6 @@
       </div>
     </dialog>
 
-    <script src="./app.js?v=20260320e"></script>
+    <script src="./app.js?v=20260320f"></script>
   </body>
 </html>
