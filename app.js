@@ -113,10 +113,12 @@ function embeddedDataUrl(coin, side) {
 
 function imageUrlCandidates(coin, side) {
   // We try multiple patterns because your repo may contain either:
-  // - `coin-images/<uuid-lower>/obv.jpg` (current app uploader)
-  // - `coin-images/<uuid-upper>/obv.jpg`
-  // - `coin-images/<UUID>-obv.jpg` (older zip exports)
-  // - `coin-images/images/<UUID>-obv.jpg` (if you kept the "images/" folder)
+  // - `NastyTangent.github/coin-images/<uuid-lower>/obv.jpg` (current app uploader)
+  // - `NastyTangent.github/coin-images/<uuid-upper>/obv.jpg`
+  // - `NastyTangent.github/coin-images/<UUID>-obv.jpg` (older zip exports)
+  // - `NastyTangent.github/coin-images/images/<UUID>-obv.jpg` (if you kept the "images/" folder)
+  //
+  // Older layouts may also have `coin-images/...` at repo root, so we try both.
   const rawID = safeText(coin.id);
   const lower = rawID.toLowerCase();
   const upper = rawID.toUpperCase();
@@ -126,14 +128,19 @@ function imageUrlCandidates(coin, side) {
   const out = [];
 
   // Folder-based (preferred)
+  if (lower) out.push(new URL(`NastyTangent.github/coin-images/${lower}/${sideFile}`, BASE).toString());
+  if (upper && upper !== lower) out.push(new URL(`NastyTangent.github/coin-images/${upper}/${sideFile}`, BASE).toString());
   if (lower) out.push(new URL(`coin-images/${lower}/${sideFile}`, BASE).toString());
   if (upper && upper !== lower) out.push(new URL(`coin-images/${upper}/${sideFile}`, BASE).toString());
 
   // Flat files (zip-style)
+  if (upper) out.push(new URL(`NastyTangent.github/coin-images/${upper}-${sideTag}.jpg`, BASE).toString());
+  if (lower && lower !== upper) out.push(new URL(`NastyTangent.github/coin-images/${lower}-${sideTag}.jpg`, BASE).toString());
   if (upper) out.push(new URL(`coin-images/${upper}-${sideTag}.jpg`, BASE).toString());
   if (lower && lower !== upper) out.push(new URL(`coin-images/${lower}-${sideTag}.jpg`, BASE).toString());
 
   // If you kept an `images/` folder inside coin-images or at site root
+  if (upper) out.push(new URL(`NastyTangent.github/coin-images/images/${upper}-${sideTag}.jpg`, BASE).toString());
   if (upper) out.push(new URL(`coin-images/images/${upper}-${sideTag}.jpg`, BASE).toString());
   if (upper) out.push(new URL(`images/${upper}-${sideTag}.jpg`, BASE).toString());
 
@@ -439,19 +446,40 @@ function renderLayerDetail(s, g) {
   els.detailNotes.textContent = safeText(rep.notes).trim() || "—";
 
   const setImg = (imgEl, candidates, embedded) => {
+    const tile = imgEl.closest(".photoTile");
+    const markMissing = () => {
+      imgEl.onerror = null;
+      imgEl.removeAttribute("src");
+      imgEl.style.display = "none";
+      if (tile) tile.classList.add("is-missing");
+    };
+
+    imgEl.onerror = null;
     imgEl.removeAttribute("src");
-    if ((!candidates || !candidates.length) && !embedded) return;
+
+    if ((!candidates || !candidates.length) && !embedded) {
+      markMissing();
+      return;
+    }
+
+    if (tile) tile.classList.remove("is-missing");
+    imgEl.style.display = "block";
+
     const first = candidates && candidates.length ? candidates[0] : embedded;
     if (first) imgEl.src = `${first}?v=${Date.now()}`;
+
     imgEl.onerror = () => {
-      const next = candidates ? candidates.find((u) => u && imgEl.src.indexOf(u) === -1) : null;
+      const srcNow = imgEl.src || "";
+      const next = candidates ? candidates.find((u) => u && srcNow.indexOf(u) === -1) : null;
       if (next) {
         imgEl.src = `${next}?v=${Date.now()}`;
         return;
       }
-      if (embedded && imgEl.src !== embedded) {
+      if (embedded && srcNow !== embedded) {
         imgEl.src = embedded;
+        return;
       }
+      markMissing();
     };
   };
 

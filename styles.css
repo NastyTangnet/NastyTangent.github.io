@@ -438,6 +438,18 @@ summary.coin__summary {
   aspect-ratio: 1 / 1;
 }
 .photoTile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photoTile.is-missing {
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.04);
+}
+.photoTile.is-missing::after {
+  content: "No photo";
+  font-size: 12px;
+  font-weight: 950;
+  color: rgba(238, 242, 248, 0.50);
+  letter-spacing: 0.2px;
+}
 .photoTile__label {
   position: absolute;
   left: 10px;
