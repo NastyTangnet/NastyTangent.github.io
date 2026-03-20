@@ -94,6 +94,20 @@ function safeText(v) {
   return String(v);
 }
 
+const DEBUG = new URLSearchParams(window.location.search).has("debug");
+if (DEBUG) {
+  // Handy in DevTools: `__cc_debug.repoRoot`, `__cc_debug.base`, etc.
+  window.__cc_debug = {
+    href: window.location.href,
+    pathname: window.location.pathname,
+    base: BASE.toString(),
+    repoRoot: pagesRootURL().toString(),
+    pagesRootURL,
+    imageUrlCandidates,
+  };
+  console.log("[cc] debug", window.__cc_debug);
+}
+
 function escapeHtml(s) {
   return safeText(s)
     .replaceAll("&", "&amp;")
@@ -218,8 +232,8 @@ function embeddedDataUrl(coin, side) {
 
 function imageUrlCandidates(coin, side) {
   // We try multiple patterns because your repo may contain either:
-  // - `coin-images/<uuid-lower>/obv.jpg` (preferred: images live next to the site)
-  // - `NastyTangent.github/coin-images/<uuid-lower>/obv.jpg` (older nested folder layout)
+  // - `NastyTangent.github/coin-images/<uuid-lower>/obv.jpg` (nested folder layout at repo root)
+  // - `coin-images/<uuid-lower>/obv.jpg` (repo-root layout)
   // - Flat zip exports like `coin-images/<UUID>-obv.jpg`
   const rawID = safeText(coin.id);
   const lower = rawID.toLowerCase();
@@ -229,25 +243,33 @@ function imageUrlCandidates(coin, side) {
 
   const out = [];
 
-  // Folder-based (preferred): images live alongside the site.
-  if (lower) out.push(new URL(`coin-images/${lower}/${sideFile}`, BASE).toString());
-  if (upper && upper !== lower) out.push(new URL(`coin-images/${upper}/${sideFile}`, BASE).toString());
-
-  // Repo-root: images live under `NastyTangent.github/coin-images` at the repo root.
   const repoRoot = pagesRootURL();
+
+  // Repo-root (preferred for GitHub Pages): images live under `NastyTangent.github/coin-images`.
   if (lower) out.push(new URL(`NastyTangent.github/coin-images/${lower}/${sideFile}`, repoRoot).toString());
   if (upper && upper !== lower) out.push(new URL(`NastyTangent.github/coin-images/${upper}/${sideFile}`, repoRoot).toString());
 
+  // Repo-root: images live directly under `coin-images/` at the repo root.
+  if (lower) out.push(new URL(`coin-images/${lower}/${sideFile}`, repoRoot).toString());
+  if (upper && upper !== lower) out.push(new URL(`coin-images/${upper}/${sideFile}`, repoRoot).toString());
+
+  // Folder-based (alternate): images live alongside the current page (e.g. inside `/Website/coin-images/`).
+  if (lower) out.push(new URL(`coin-images/${lower}/${sideFile}`, BASE).toString());
+  if (upper && upper !== lower) out.push(new URL(`coin-images/${upper}/${sideFile}`, BASE).toString());
+
   // Flat files (zip-style)
-  if (upper) out.push(new URL(`coin-images/${upper}-${sideTag}.jpg`, BASE).toString());
-  if (lower && lower !== upper) out.push(new URL(`coin-images/${lower}-${sideTag}.jpg`, BASE).toString());
   if (upper) out.push(new URL(`NastyTangent.github/coin-images/${upper}-${sideTag}.jpg`, repoRoot).toString());
   if (lower && lower !== upper) out.push(new URL(`NastyTangent.github/coin-images/${lower}-${sideTag}.jpg`, repoRoot).toString());
+  if (upper) out.push(new URL(`coin-images/${upper}-${sideTag}.jpg`, repoRoot).toString());
+  if (lower && lower !== upper) out.push(new URL(`coin-images/${lower}-${sideTag}.jpg`, repoRoot).toString());
+  if (upper) out.push(new URL(`coin-images/${upper}-${sideTag}.jpg`, BASE).toString());
+  if (lower && lower !== upper) out.push(new URL(`coin-images/${lower}-${sideTag}.jpg`, BASE).toString());
 
   // If you kept an `images/` folder inside coin-images or at site root
+  if (upper) out.push(new URL(`NastyTangent.github/coin-images/images/${upper}-${sideTag}.jpg`, repoRoot).toString());
+  if (upper) out.push(new URL(`coin-images/images/${upper}-${sideTag}.jpg`, repoRoot).toString());
   if (upper) out.push(new URL(`coin-images/images/${upper}-${sideTag}.jpg`, BASE).toString());
   if (upper) out.push(new URL(`images/${upper}-${sideTag}.jpg`, BASE).toString());
-  if (upper) out.push(new URL(`NastyTangent.github/coin-images/images/${upper}-${sideTag}.jpg`, repoRoot).toString());
 
   // De-dupe while preserving order.
   return [...new Set(out)];
