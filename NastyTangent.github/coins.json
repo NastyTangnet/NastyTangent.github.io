@@ -2518,5 +2518,21 @@
     "notes" : "",
     "type" : "Half Dollar",
     "year" : "1964"
+  },
+  {
+    "id" : "799FEEC5-816A-4EC1-8FA1-FF32FB56643E",
+    "mint" : "",
+    "name" : "Walking Liberty Half Dollar",
+    "notes" : "",
+    "type" : "Half Dollar",
+    "year" : "1943"
+  },
+  {
+    "id" : "60D1D005-5184-4002-BA65-1F8427749501",
+    "mint" : "D",
+    "name" : "Walking Liberty Half Dollar",
+    "notes" : "",
+    "type" : "Half Dollar",
+    "year" : "1944"
   }
 ]
