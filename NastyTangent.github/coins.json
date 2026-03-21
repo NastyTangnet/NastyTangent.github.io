@@ -2502,5 +2502,21 @@
     "notes" : "",
     "type" : "Dollar",
     "year" : "1923"
+  },
+  {
+    "id" : "E5CAB494-DAC9-4812-851E-2B09968359D6",
+    "mint" : "D",
+    "name" : "Kennedy Half Dollar",
+    "notes" : "",
+    "type" : "Half Dollar",
+    "year" : "1964"
+  },
+  {
+    "id" : "51956315-0A35-4092-8352-AEF17D8FA845",
+    "mint" : "",
+    "name" : "Kennedy Half Dollar",
+    "notes" : "",
+    "type" : "Half Dollar",
+    "year" : "1964"
   }
 ]
