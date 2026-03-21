@@ -2566,5 +2566,29 @@
     "notes" : "",
     "type" : "Half Dollar",
     "year" : "1963"
+  },
+  {
+    "id" : "F540B3C5-C74B-4EF5-BD9D-B864B7326372",
+    "mint" : "",
+    "name" : "Franklin Half Dollar",
+    "notes" : "",
+    "type" : "Half Dollar",
+    "year" : "1963"
+  },
+  {
+    "id" : "90397ABC-D29A-4EBA-A0E7-77E26BF396FC",
+    "mint" : "D",
+    "name" : "Franklin Half Dollar",
+    "notes" : "",
+    "type" : "Half Dollar",
+    "year" : "1957"
+  },
+  {
+    "id" : "9E75CFB8-F72A-4B87-8E5A-AAFCD62279EE",
+    "mint" : "D",
+    "name" : "Franklin Half Dollar",
+    "notes" : "",
+    "type" : "Half Dollar",
+    "year" : "1961"
   }
 ]
