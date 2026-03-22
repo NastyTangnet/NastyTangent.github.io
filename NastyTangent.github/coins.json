@@ -2638,5 +2638,13 @@
     "notes" : "",
     "type" : "Half Dollar",
     "year" : "1962"
+  },
+  {
+    "id" : "4DDE58A9-1E86-4B6E-B95B-9CED66BE04C1",
+    "mint" : "D",
+    "name" : "Franklin Half Dollar",
+    "notes" : "",
+    "type" : "Half Dollar",
+    "year" : "1951"
   }
 ]
