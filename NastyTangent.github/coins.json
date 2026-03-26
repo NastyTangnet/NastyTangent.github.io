@@ -2654,5 +2654,37 @@
     "notes" : "",
     "type" : "Half Dollar",
     "year" : "1929"
+  },
+  {
+    "id" : "028E9D60-E9C0-42F0-BF33-6770051AB32A",
+    "mint" : "",
+    "name" : "Walking Liberty Half Dollar",
+    "notes" : "",
+    "type" : "Half Dollar",
+    "year" : "1942"
+  },
+  {
+    "id" : "79593F08-C290-4B48-9207-F980030BFCFC",
+    "mint" : "",
+    "name" : "Walking Liberty Half Dollar",
+    "notes" : "",
+    "type" : "Half Dollar",
+    "year" : "1942"
+  },
+  {
+    "id" : "5DA02240-0C97-49BB-A6E8-3DF68C219BC7",
+    "mint" : "",
+    "name" : "Walking Liberty Half Dollar",
+    "notes" : "",
+    "type" : "Half Dollar",
+    "year" : "1945"
+  },
+  {
+    "id" : "4E3596AE-A766-4397-98A4-13F434EDAC53",
+    "mint" : "D",
+    "name" : "Franklin Half Dollar",
+    "notes" : "",
+    "type" : "Half Dollar",
+    "year" : "1959"
   }
 ]
